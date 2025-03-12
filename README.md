@@ -1,15 +1,14 @@
-# SpaceExploreAI 股价预测大模型
-
-![version](https://img.shields.io/badge/version-1.0.0-blue)
-![python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
-![pytorch](https://img.shields.io/badge/pytorch-2.0%2B-orange)
+# SpaceExploreAI 投资预测大模型
 
 ## 项目介绍
 
-SpaceExploreAI 是一个基于深度学习的股价预测系统，采用先进的 Transformer 架构设计，更是吸取了DeepSeep-V3的多种优化框架，如MLA、MOE，可用于股票价格趋势预测、技术分析和投资决策辅助。该项目结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的股票预测解决方案。
+SpaceExploreAI 是一个基于深度学习的投资预测系统，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE，可用于股票价格趋势预测、技术分析和投资决策辅助。该项目结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的股票预测解决方案。
 
 ## 免责声明
 SpaceExploreAI仅供大模型AI学习、量化交易学习，不可以用于商业用途、不可以以此为投资逻辑，后果自负。
+
+## License
+[MIT License](LICENSE)
 
 ### 主要特点
 
@@ -57,7 +56,7 @@ SpaceExploreAI/
 
 #### 多头潜在注意力 (MLA)
 
-SpaceExploreAI 使用了创新的多头潜在注意力机制，将传统的自注意力扩展为同时支持旋转位置编码 (RoPE) 和无位置编码的注意力头，能够更好地捕捉时间序列数据中的长期和短期依赖关系。
+SpaceExploreAI 使用了创新的多头潜在注意力机制，将传统的自注意力扩展为同时支持旋转位置编码 (RoPE) 和无位置编码的注意力头，能够更好地捕捉时间序列数据中的长期和短期依赖关系。 后续版本在旋转位置编码的基础上，加权一个时间序列位置编码，原因是开盘前后的时间对特征向量具有较大影响值
 
 ```
 Q, K, V 分解为：
@@ -76,7 +75,7 @@ Q, K, V 分解为：
 
 #### 优化技术
 
-- **混合精度训练**：利用 FP16/BF16 加速训练过程
+- **混合精度训练**：利用 FP16/BF16 加速训练过程（等后续添加DeepSeek FP8）
 - **梯度累积**：支持更大的有效批量大小
 - **早停机制**：防止过拟合
 - **学习率调度**：使用 ReduceLROnPlateau 策略
@@ -245,13 +244,6 @@ python -m SpaceExploreAI.train.train_model --resume_from ./models/stock_transfor
 2. 提交代码改进或新功能
 3. 改进文档
 
-## 许可证
-
-[MIT License](LICENSE)
-
-## 鸣谢
-
-感谢所有开源项目和研究，特别是 DeepSeek 和 LLama3 大模型的架构设计，为本项目提供了宝贵的参考。
 
 ## 案例分析
 
@@ -442,3 +434,7 @@ next_price = current_price * (1 + actual_change)
 
 - **问题报告**: 请在 [GitHub Issues](https://github.com/li-neo/SpaceExploreAI/issues) 提交问题
 - **联系邮箱**: liguangxian1995@gmail.com 
+
+## 鸣谢
+
+感谢项目合伙人常遵领的日夜奋战、感谢阿姣同学在投资策略上给予的支持和帮助，以及 DeepSeek、LLama3、ChatGPT、Hugging Face在AI领域的探索。

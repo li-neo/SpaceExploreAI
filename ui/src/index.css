@@ -1,0 +1,55 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f0f2f5;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* 覆盖Ant Design的一些样式 */
+.ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+.ant-layout-sider-children .ant-menu {
+  flex: 1;
+}
+
+.site-layout .site-layout-background {
+  background: #fff;
+}
+
+.echarts-for-react {
+  height: 100%;
+  width: 100%;
+}
+
+/* 自定义类 */
+.stock-card {
+  transition: all 0.3s;
+}
+
+.stock-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.prediction-badge-up {
+  background-color: #52c41a;
+}
+
+.prediction-badge-down {
+  background-color: #f5222d;
+}
+
+.prediction-badge-neutral {
+  background-color: #faad14;
+} 

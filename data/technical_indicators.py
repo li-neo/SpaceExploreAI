@@ -2,14 +2,14 @@ import pandas as pd
 import numpy as np
 import pandas_ta as ta
 from typing import List, Optional, Union, Dict
-import logging
+import sys
+import os
 
-# 设置日志记录
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# 添加项目根目录到 Python 路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from log.logger import init_logger
+
+logger = init_logger('technical_indicators.log')
 
 
 class TechnicalIndicatorProcessor:
@@ -79,6 +79,9 @@ class TechnicalIndicatorProcessor:
             添加了布林带的DataFrame
         """
         result_df = df.copy()
+
+        if df.__len__() <= 20:
+            return result_df
         
         bb = ta.bbands(result_df['close'], length=period, std=std_dev)
         
@@ -383,8 +386,20 @@ class TechnicalIndicatorProcessor:
         logger.info("正在计算所有技术指标...")
         result_df = df.copy()
         
+        # 打印列名信息用于调试
+        logger.info("列名及其类型:")
+        for col in result_df.columns:
+            logger.info(f"列名: {col}, 类型: {type(col)}")
+        
+        # 处理多级索引列名，只保留第一级
+        if isinstance(result_df.columns, pd.MultiIndex):
+            result_df.columns = result_df.columns.get_level_values(0)
+        
         # 确保列名都是小写的
-        result_df.columns = [col.lower() for col in result_df.columns]
+        result_df.columns = [col.lower() if isinstance(col, str) else str(col).lower() for col in result_df.columns]
+        
+        # 打印处理后的列名
+        logger.info(f"处理后的列名: {result_df.columns.tolist()}")
         
         # 添加各类指标
         result_df = self.add_moving_averages(result_df)
@@ -514,22 +529,220 @@ class TechnicalIndicatorProcessor:
             result_df = self.add_time_features(result_df)
             
         return result_df
+    
+    def analyze_trend(self, df: pd.DataFrame) -> Dict:
+        """
+        分析各个技术指标并生成趋势预测
+        
+        参数:
+            df: 包含技术指标的DataFrame
+            
+        返回:
+            包含分析结果的字典
+        """
+        analysis = {
+            'signals': [],
+            'score': 0,
+            'max_score': 0,
+            'details': {}
+        }
+        
+        # 1. 移动平均线分析
+        try:
+            if df['ma_5'].iloc[-1] > df['ma_20'].iloc[-1]:
+                analysis['signals'].append("短期均线在长期均线上方，可能呈现上升趋势")
+                analysis['score'] += 1
+            else:
+                analysis['signals'].append("短期均线在长期均线下方，可能呈现下降趋势")
+            analysis['max_score'] += 1
+            
+            # 计算均线趋势
+            ma5_trend = df['ma_5'].iloc[-1] - df['ma_5'].iloc[-5]
+            ma20_trend = df['ma_20'].iloc[-1] - df['ma_20'].iloc[-5]
+            if ma5_trend > 0 and ma20_trend > 0:
+                analysis['signals'].append("短期和长期均线都向上，强势上涨信号")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"移动平均线分析发生错误: {str(e)}")
+
+        # 2. MACD分析
+        try:
+            if df['macd'].iloc[-1] > df['macd_signal'].iloc[-1]:
+                analysis['signals'].append("MACD金叉，可能是买入信号")
+                analysis['score'] += 1
+            else:
+                analysis['signals'].append("MACD死叉，可能是卖出信号")
+            analysis['max_score'] += 1
+            
+            if df['macd_hist'].iloc[-1] > 0:
+                analysis['signals'].append("MACD柱状图为正，上升趋势")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"MACD分析发生错误: {str(e)}")
+
+        # 3. RSI分析
+        try:
+            rsi_14 = df['rsi_14'].iloc[-1]
+            if rsi_14 > 70:
+                analysis['signals'].append("RSI超买，可能面临回调")
+            elif rsi_14 < 30:
+                analysis['signals'].append("RSI超卖，可能存在反弹机会")
+            elif 40 <= rsi_14 <= 60:
+                analysis['signals'].append("RSI处于中性区域")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"RSI分析发生错误: {str(e)}")
+
+        # 4. 布林带分析
+        try:
+            close = df['close'].iloc[-1]
+            bb_upper = df['bb_upper'].iloc[-1]
+            bb_lower = df['bb_lower'].iloc[-1]
+            
+            if close > bb_upper:
+                analysis['signals'].append("价格突破布林带上轨，可能超买")
+            elif close < bb_lower:
+                analysis['signals'].append("价格突破布林带下轨，可能超卖")
+            else:
+                analysis['signals'].append("价格在布林带内运行，趋势平稳")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"布林带分析发生错误: {str(e)}")
+
+        # 5. 成交量分析
+        try:
+            if df['volume'].iloc[-1] > df['volume_ma_20'].iloc[-1]:
+                analysis['signals'].append("成交量高于20日均量，交投活跃")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"成交量分析发生错误: {str(e)}")
+
+        # 6. 波动率分析
+        try:
+            if df['volatility_ratio_5_21'].iloc[-1] > 1.1:
+                analysis['signals'].append("短期波动率显著高于长期，市场不稳定")
+            elif df['volatility_ratio_5_21'].iloc[-1] < 0.9:
+                analysis['signals'].append("市场波动率较低，可能酝酿大行情")
+            else:
+                analysis['signals'].append("波动率处于正常范围")
+                analysis['score'] += 1
+            analysis['max_score'] += 1
+        except Exception as e:
+            logger.warning(f"波动率分析发生错误: {str(e)}")
+
+        # 计算综合得分
+        analysis['score_percentage'] = (analysis['score'] / analysis['max_score']) * 100 if analysis['max_score'] > 0 else 0
+        
+        # 生成趋势判断
+        if analysis['score_percentage'] >= 70:
+            analysis['trend'] = "强势上涨"
+            analysis['recommendation'] = "可以考虑买入"
+        elif analysis['score_percentage'] >= 50:
+            analysis['trend'] = "温和上涨"
+            analysis['recommendation'] = "观望为主，可小仓位买入"
+        elif analysis['score_percentage'] >= 30:
+            analysis['trend'] = "震荡调整"
+            analysis['recommendation'] = "建议观望"
+        else:
+            analysis['trend'] = "下跌趋势"
+            analysis['recommendation'] = "建议离场观望"
+            
+        return analysis
 
 
 # 使用示例
 if __name__ == "__main__":
     import yfinance as yf
     
-    # 获取某股票数据
-    ticker = "AAPL"
-    data = yf.download(ticker, start="2020-01-01", end="2025-3-10")
-    
-    # 初始化技术指标处理器
-    processor = TechnicalIndicatorProcessor()
-    
-    # 计算所有技术指标
-    processed_data = processor.calculate_all_indicators(data)
-    
-    # 查看结果
-    print(processed_data.columns)
-    print(processed_data.head()) 
+    try:
+        # 获取某股票数据
+        ticker = "AAPL"
+        logger.info(f"开始下载 {ticker} 的股票数据...")
+        data = yf.download(ticker, start="2025-01-01")
+        
+        if data.empty:
+            logger.error(f"未能获取到 {ticker} 的数据")
+            sys.exit(1)
+            
+        logger.info(f"\n原始数据预览:")
+        logger.info("-" * 50)
+        logger.info(f"数据形状: {data.shape}")
+        logger.info(f"数据列名: {data.columns.tolist()}")
+        logger.info(f"数据预览:\n{data.head()}")
+        logger.info("-" * 50)
+        
+        # 初始化技术指标处理器
+        processor = TechnicalIndicatorProcessor()
+        
+        # 计算所有技术指标
+        logger.info("\n开始计算技术指标...")
+        processed_data = processor.calculate_all_indicators(data)
+        
+        # 查看结果
+        logger.info("\n计算完成! 技术指标统计信息:")
+        logger.info("-" * 50)
+        original_columns = len(data.columns)
+        new_columns = len(processed_data.columns)
+        logger.info(f"原始指标数量: {original_columns}")
+        logger.info(f"新增指标数量: {new_columns - original_columns}")
+        logger.info(f"总计指标数量: {new_columns}")
+        
+        # 按类别显示指标
+        indicator_categories = {
+            '移动平均线': [col for col in processed_data.columns if col.startswith(('ma_', 'ema_'))],
+            '布林带': [col for col in processed_data.columns if col.startswith('bb_')],
+            'RSI': [col for col in processed_data.columns if col.startswith('rsi_')],
+            'MACD': [col for col in processed_data.columns if 'macd' in col],
+            '成交量': [col for col in processed_data.columns if 'volume' in col],
+            '波动率': [col for col in processed_data.columns if 'volatility' in col],
+            '动量': [col for col in processed_data.columns if 'momentum' in col or 'roc' in col],
+            '其他': []
+        }
+        
+        logger.info("\n按类别显示指标:")
+        for category, indicators in indicator_categories.items():
+            logger.info(f"\n{category}:")
+            for indicator in indicators:
+                logger.info(f"  - {indicator}:")
+                logger.info(f"    前5行数据:\n{processed_data[indicator].head()}")
+                logger.info(f"    基本统计:\n{processed_data[indicator].describe()}\n")
+        
+        # 添加趋势分析
+        logger.info("\n开始进行趋势分析...")
+        analysis_result = processor.analyze_trend(processed_data)
+        
+        logger.info("\n=== 趋势分析报告 ===")
+        logger.info("-" * 50)
+        logger.info(f"综合得分: {analysis_result['score_percentage']:.2f}%")
+        logger.info(f"趋势判断: {analysis_result['trend']}")
+        logger.info(f"操作建议: {analysis_result['recommendation']}")
+        logger.info("\n详细分析:")
+        for signal in analysis_result['signals']:
+            logger.info(f"- {signal}")
+            
+        # 预测下一个交易日的趋势
+        last_close = processed_data['close'].iloc[-1]
+        ma5_trend = processed_data['ma_5'].iloc[-1] - processed_data['ma_5'].iloc[-5]
+        price_change_pred = ma5_trend * (analysis_result['score_percentage'] / 100)
+        pred_price = last_close + price_change_pred
+        
+        logger.info("\n=== 预测信息 ===")
+        logger.info("-" * 50)
+        logger.info(f"当前收盘价: {last_close:.2f}")
+        logger.info(f"预测下一交易日价格: {pred_price:.2f}")
+        logger.info(f"预测涨跌幅: {(price_change_pred/last_close*100):.2f}%")
+        
+        # 保存结果到CSV文件
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        output_file = os.path.join(current_dir, f"{ticker}_technical_indicators.csv")
+        processed_data.to_csv(output_file)
+        logger.info(f"\n结果已保存到文件: {output_file}")
+        
+    except Exception as e:
+        logger.error(f"处理过程中出现错误: {str(e)}")
+        raise

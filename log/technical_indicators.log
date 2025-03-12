@@ -1,0 +1,774 @@
+2025-03-12 18:02:23,737 - log.logger - INFO - 开始下载 AAPL 的股票数据...
+2025-03-12 18:02:25,964 - log.logger - INFO - 
+原始数据预览:
+2025-03-12 18:02:25,965 - log.logger - INFO - --------------------------------------------------
+2025-03-12 18:02:25,965 - log.logger - INFO - 数据形状: (46, 5)
+2025-03-12 18:02:25,965 - log.logger - INFO - 数据列名: [('Close', 'AAPL'), ('High', 'AAPL'), ('Low', 'AAPL'), ('Open', 'AAPL'), ('Volume', 'AAPL')]
+2025-03-12 18:02:25,970 - log.logger - INFO - 数据预览:
+Price            Close        High         Low        Open    Volume
+Ticker            AAPL        AAPL        AAPL        AAPL      AAPL
+Date                                                                
+2025-01-02  243.582199  248.826433  241.554430  248.656607  55740700
+2025-01-03  243.092728  243.911819  241.624341  243.092728  40244100
+2025-01-06  244.730927  247.058369  242.932900  244.041682  45045600
+2025-01-07  241.944000  245.280328  241.084944  242.713144  40856000
+2025-01-08  242.433441  243.442342  239.786358  241.654299  37628900
+2025-03-12 18:02:25,970 - log.logger - INFO - --------------------------------------------------
+2025-03-12 18:02:25,970 - log.logger - INFO - 
+开始计算技术指标...
+2025-03-12 18:02:25,970 - log.logger - INFO - 正在计算所有技术指标...
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名及其类型:
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名: ('Close', 'AAPL'), 类型: <class 'tuple'>
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名: ('High', 'AAPL'), 类型: <class 'tuple'>
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名: ('Low', 'AAPL'), 类型: <class 'tuple'>
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名: ('Open', 'AAPL'), 类型: <class 'tuple'>
+2025-03-12 18:02:25,970 - log.logger - INFO - 列名: ('Volume', 'AAPL'), 类型: <class 'tuple'>
+2025-03-12 18:02:25,970 - log.logger - INFO - 处理后的列名: ['close', 'high', 'low', 'open', 'volume']
+2025-03-12 18:02:25,991 - log.logger - INFO - 完成所有技术指标的计算
+2025-03-12 18:02:25,991 - log.logger - INFO - 
+计算完成! 技术指标统计信息:
+2025-03-12 18:02:25,991 - log.logger - INFO - --------------------------------------------------
+2025-03-12 18:02:25,991 - log.logger - INFO - 原始指标数量: 5
+2025-03-12 18:02:25,991 - log.logger - INFO - 新增指标数量: 45
+2025-03-12 18:02:25,991 - log.logger - INFO - 总计指标数量: 50
+2025-03-12 18:02:25,991 - log.logger - INFO - 
+按类别显示指标:
+2025-03-12 18:02:25,991 - log.logger - INFO - 
+移动平均线:
+2025-03-12 18:02:25,991 - log.logger - INFO -   - ma_5:
+2025-03-12 18:02:25,992 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02           NaN
+2025-01-03           NaN
+2025-01-06           NaN
+2025-01-07           NaN
+2025-01-08    243.156659
+Name: ma_5, dtype: float64
+2025-03-12 18:02:25,993 - log.logger - INFO -     基本统计:
+count     42.000000
+mean     235.872454
+std        6.037927
+min      224.307376
+25%      231.545579
+50%      235.769775
+75%      240.689999
+max      246.078000
+Name: ma_5, dtype: float64
+
+2025-03-12 18:02:25,993 - log.logger - INFO -   - ma_10:
+2025-03-12 18:02:25,993 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: ma_10, dtype: float64
+2025-03-12 18:02:25,994 - log.logger - INFO -     基本统计:
+count     37.000000
+mean     235.616929
+std        4.999264
+min      228.404871
+25%      231.824115
+50%      235.060555
+75%      239.774001
+max      243.896001
+Name: ma_10, dtype: float64
+
+2025-03-12 18:02:25,994 - log.logger - INFO -   - ma_20:
+2025-03-12 18:02:25,994 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: ma_20, dtype: float64
+2025-03-12 18:02:25,995 - log.logger - INFO -     基本统计:
+count     27.000000
+mean     235.258562
+std        3.307198
+min      230.660196
+25%      232.160493
+50%      234.851250
+75%      238.368893
+max      239.460500
+Name: ma_20, dtype: float64
+
+2025-03-12 18:02:25,995 - log.logger - INFO -   - ma_50:
+2025-03-12 18:02:25,995 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    None
+2025-01-03    None
+2025-01-06    None
+2025-01-07    None
+2025-01-08    None
+Name: ma_50, dtype: object
+2025-03-12 18:02:25,996 - log.logger - INFO -     基本统计:
+count       0
+unique      0
+top       NaN
+freq      NaN
+Name: ma_50, dtype: object
+
+2025-03-12 18:02:25,996 - log.logger - INFO -   - ma_200:
+2025-03-12 18:02:25,996 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    None
+2025-01-03    None
+2025-01-06    None
+2025-01-07    None
+2025-01-08    None
+Name: ma_200, dtype: object
+2025-03-12 18:02:25,996 - log.logger - INFO -     基本统计:
+count       0
+unique      0
+top       NaN
+freq      NaN
+Name: ma_200, dtype: object
+
+2025-03-12 18:02:25,996 - log.logger - INFO -   - ema_5:
+2025-03-12 18:02:25,997 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02           NaN
+2025-01-03           NaN
+2025-01-06           NaN
+2025-01-07           NaN
+2025-01-08    243.156659
+Name: ema_5, dtype: float64
+2025-03-12 18:02:25,997 - log.logger - INFO -     基本统计:
+count     42.000000
+mean     235.798797
+std        5.619192
+min      224.862240
+25%      232.475533
+50%      235.337985
+75%      240.579831
+max      245.722194
+Name: ema_5, dtype: float64
+
+2025-03-12 18:02:25,997 - log.logger - INFO -   - ema_10:
+2025-03-12 18:02:25,997 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: ema_10, dtype: float64
+2025-03-12 18:02:25,998 - log.logger - INFO -     基本统计:
+count     37.000000
+mean     235.791443
+std        4.222385
+min      229.225006
+25%      232.371617
+50%      234.277441
+75%      239.283429
+max      243.053358
+Name: ema_10, dtype: float64
+
+2025-03-12 18:02:25,998 - log.logger - INFO -   - ema_20:
+2025-03-12 18:02:25,998 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: ema_20, dtype: float64
+2025-03-12 18:02:25,999 - log.logger - INFO -     基本统计:
+count     27.000000
+mean     236.351514
+std        2.766311
+min      232.345540
+25%      233.612381
+50%      236.490889
+75%      238.977336
+max      239.830478
+Name: ema_20, dtype: float64
+
+2025-03-12 18:02:25,999 - log.logger - INFO -   - ema_50:
+2025-03-12 18:02:25,999 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    None
+2025-01-03    None
+2025-01-06    None
+2025-01-07    None
+2025-01-08    None
+Name: ema_50, dtype: object
+2025-03-12 18:02:25,999 - log.logger - INFO -     基本统计:
+count       0
+unique      0
+top       NaN
+freq      NaN
+Name: ema_50, dtype: object
+
+2025-03-12 18:02:25,999 - log.logger - INFO -   - ema_200:
+2025-03-12 18:02:25,999 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    None
+2025-01-03    None
+2025-01-06    None
+2025-01-07    None
+2025-01-08    None
+Name: ema_200, dtype: object
+2025-03-12 18:02:26,000 - log.logger - INFO -     基本统计:
+count       0
+unique      0
+top       NaN
+freq      NaN
+Name: ema_200, dtype: object
+
+2025-03-12 18:02:26,000 - log.logger - INFO - 
+布林带:
+2025-03-12 18:02:26,000 - log.logger - INFO -   - bb_upper:
+2025-03-12 18:02:26,000 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: bb_upper, dtype: float64
+2025-03-12 18:02:26,000 - log.logger - INFO -     基本统计:
+count     27.000000
+mean     247.859950
+std        3.895507
+min      241.037387
+25%      244.629075
+50%      248.879821
+75%      251.263447
+max      252.361327
+Name: bb_upper, dtype: float64
+
+2025-03-12 18:02:26,000 - log.logger - INFO -   - bb_middle:
+2025-03-12 18:02:26,000 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: bb_middle, dtype: float64
+2025-03-12 18:02:26,001 - log.logger - INFO -     基本统计:
+count     27.000000
+mean     235.258562
+std        3.307198
+min      230.660196
+25%      232.160493
+50%      234.851250
+75%      238.368893
+max      239.460500
+Name: bb_middle, dtype: float64
+
+2025-03-12 18:02:26,001 - log.logger - INFO -   - bb_lower:
+2025-03-12 18:02:26,001 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: bb_lower, dtype: float64
+2025-03-12 18:02:26,002 - log.logger - INFO -     基本统计:
+count     27.000000
+mean     222.657174
+std        3.110773
+min      218.889607
+25%      219.947643
+50%      220.845720
+75%      225.011647
+max      227.869577
+Name: bb_lower, dtype: float64
+
+2025-03-12 18:02:26,002 - log.logger - INFO -   - bb_width:
+2025-03-12 18:02:26,002 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: bb_width, dtype: float64
+2025-03-12 18:02:26,003 - log.logger - INFO -     基本统计:
+count    27.000000
+mean     10.709950
+std       1.003572
+min       8.997817
+25%       9.873944
+50%      11.018389
+75%      11.398186
+max      12.418812
+Name: bb_width, dtype: float64
+
+2025-03-12 18:02:26,003 - log.logger - INFO - 
+RSI:
+2025-03-12 18:02:26,003 - log.logger - INFO -   - rsi_7:
+2025-03-12 18:02:26,003 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: rsi_7, dtype: float64
+2025-03-12 18:02:26,004 - log.logger - INFO -     基本统计:
+count    39.000000
+mean     47.382538
+std      18.402288
+min      10.376936
+25%      37.225437
+50%      48.072734
+75%      62.788546
+max      75.897151
+Name: rsi_7, dtype: float64
+
+2025-03-12 18:02:26,004 - log.logger - INFO -   - rsi_14:
+2025-03-12 18:02:26,004 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: rsi_14, dtype: float64
+2025-03-12 18:02:26,005 - log.logger - INFO -     基本统计:
+count    32.000000
+mean     50.085479
+std       9.777330
+min      23.537164
+25%      45.490584
+50%      49.502151
+75%      56.365540
+max      64.483824
+Name: rsi_14, dtype: float64
+
+2025-03-12 18:02:26,005 - log.logger - INFO -   - rsi_21:
+2025-03-12 18:02:26,005 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: rsi_21, dtype: float64
+2025-03-12 18:02:26,005 - log.logger - INFO -     基本统计:
+count    25.000000
+mean     50.347901
+std       6.870732
+min      36.415754
+25%      46.219946
+50%      49.300348
+75%      58.018778
+max      60.212152
+Name: rsi_21, dtype: float64
+
+2025-03-12 18:02:26,005 - log.logger - INFO - 
+MACD:
+2025-03-12 18:02:26,005 - log.logger - INFO -   - macd:
+2025-03-12 18:02:26,006 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: macd, dtype: float64
+2025-03-12 18:02:26,006 - log.logger - INFO -     基本统计:
+count    21.000000
+mean      0.873191
+std       1.637917
+min      -1.974888
+25%      -0.361153
+50%       1.182603
+75%       2.225085
+max       3.179414
+Name: macd, dtype: float64
+
+2025-03-12 18:02:26,006 - log.logger - INFO -   - macd_signal:
+2025-03-12 18:02:26,006 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: macd_signal, dtype: float64
+2025-03-12 18:02:26,007 - log.logger - INFO -     基本统计:
+count    13.000000
+mean      1.230673
+std       0.538891
+min       0.242183
+25%       0.861601
+50%       1.325164
+75%       1.669576
+max       1.815216
+Name: macd_signal, dtype: float64
+
+2025-03-12 18:02:26,007 - log.logger - INFO -   - macd_hist:
+2025-03-12 18:02:26,007 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: macd_hist, dtype: float64
+2025-03-12 18:02:26,007 - log.logger - INFO -     基本统计:
+count    13.000000
+mean      0.141455
+std       1.362085
+min      -2.054912
+25%      -0.734103
+50%      -0.095587
+75%       1.179128
+max       2.239716
+Name: macd_hist, dtype: float64
+
+2025-03-12 18:02:26,007 - log.logger - INFO - 
+成交量:
+2025-03-12 18:02:26,007 - log.logger - INFO -   - volume:
+2025-03-12 18:02:26,007 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    55740700
+2025-01-03    40244100
+2025-01-06    45045600
+2025-01-07    40856000
+2025-01-08    37628900
+Name: volume, dtype: int64
+2025-03-12 18:02:26,008 - log.logger - INFO -     基本统计:
+count    4.600000e+01
+mean     5.326906e+07
+std      1.677638e+07
+min      2.992530e+07
+25%      4.096055e+07
+50%      4.841790e+07
+75%      5.938445e+07
+max      1.010751e+08
+Name: volume, dtype: float64
+
+2025-03-12 18:02:26,008 - log.logger - INFO -   - volume_change:
+2025-03-12 18:02:26,009 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02          NaN
+2025-01-03   -27.801230
+2025-01-06    11.930941
+2025-01-07    -9.300797
+2025-01-08    -7.898717
+Name: volume_change, dtype: float64
+2025-03-12 18:02:26,009 - log.logger - INFO -     基本统计:
+count    45.000000
+mean      5.345903
+std      33.485143
+min     -39.918714
+25%     -16.978397
+50%      -6.068786
+75%      19.381507
+max      81.599330
+Name: volume_change, dtype: float64
+
+2025-03-12 18:02:26,009 - log.logger - INFO -   - volume_ma_5:
+2025-03-12 18:02:26,009 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02           NaN
+2025-01-03           NaN
+2025-01-06           NaN
+2025-01-07           NaN
+2025-01-08    43903060.0
+Name: volume_ma_5, dtype: float64
+2025-03-12 18:02:26,010 - log.logger - INFO -     基本统计:
+count    4.200000e+01
+mean     5.294742e+07
+std      1.091143e+07
+min      3.748714e+07
+25%      4.515220e+07
+50%      4.840548e+07
+75%      6.336198e+07
+max      7.455810e+07
+Name: volume_ma_5, dtype: float64
+
+2025-03-12 18:02:26,010 - log.logger - INFO -   - volume_ma_20:
+2025-03-12 18:02:26,010 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: volume_ma_20, dtype: float64
+2025-03-12 18:02:26,010 - log.logger - INFO -     基本统计:
+count    2.700000e+01
+mean     5.355051e+07
+std      6.211483e+06
+min      4.450956e+07
+25%      4.813799e+07
+50%      5.275189e+07
+75%      5.974380e+07
+max      6.112188e+07
+Name: volume_ma_20, dtype: float64
+
+2025-03-12 18:02:26,011 - log.logger - INFO -   - rel_volume:
+2025-03-12 18:02:26,011 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: rel_volume, dtype: float64
+2025-03-12 18:02:26,011 - log.logger - INFO -     基本统计:
+count    27.000000
+mean      0.948005
+std       0.301949
+min       0.496240
+25%       0.717498
+50%       0.919470
+75%       1.048064
+max       1.684176
+Name: rel_volume, dtype: float64
+
+2025-03-12 18:02:26,011 - log.logger - INFO -   - volume_price_trend:
+2025-03-12 18:02:26,011 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02           0
+2025-01-03           0
+2025-01-06    45045600
+2025-01-07           0
+2025-01-08    37628900
+Name: volume_price_trend, dtype: int64
+2025-03-12 18:02:26,012 - log.logger - INFO -     基本统计:
+count    4.600000e+01
+mean     2.155898e+07
+std      2.701598e+07
+min      0.000000e+00
+25%      0.000000e+00
+50%      0.000000e+00
+75%      4.506188e+07
+max      9.486340e+07
+Name: volume_price_trend, dtype: float64
+
+2025-03-12 18:02:26,012 - log.logger - INFO - 
+波动率:
+2025-03-12 18:02:26,012 - log.logger - INFO -   - volatility_5:
+2025-03-12 18:02:26,012 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: volatility_5, dtype: float64
+2025-03-12 18:02:26,013 - log.logger - INFO -     基本统计:
+count    41.000000
+mean     26.292655
+std       9.845776
+min       4.844550
+25%      19.426514
+50%      27.939631
+75%      33.425795
+max      42.053345
+Name: volatility_5, dtype: float64
+
+2025-03-12 18:02:26,013 - log.logger - INFO -   - volatility_21:
+2025-03-12 18:02:26,013 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: volatility_21, dtype: float64
+2025-03-12 18:02:26,013 - log.logger - INFO -     基本统计:
+count    25.000000
+mean     28.209846
+std       3.800662
+min      21.259139
+25%      25.545611
+50%      27.873005
+75%      31.753534
+max      33.489896
+Name: volatility_21, dtype: float64
+
+2025-03-12 18:02:26,013 - log.logger - INFO -   - volatility_63:
+2025-03-12 18:02:26,014 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: volatility_63, dtype: float64
+2025-03-12 18:02:26,014 - log.logger - INFO -     基本统计:
+count    0.0
+mean     NaN
+std      NaN
+min      NaN
+25%      NaN
+50%      NaN
+75%      NaN
+max      NaN
+Name: volatility_63, dtype: float64
+
+2025-03-12 18:02:26,014 - log.logger - INFO -   - volatility_ratio_5_21:
+2025-03-12 18:02:26,014 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: volatility_ratio_5_21, dtype: float64
+2025-03-12 18:02:26,015 - log.logger - INFO -     基本统计:
+count    25.000000
+mean      0.824157
+std       0.332605
+min       0.183852
+25%       0.508202
+50%       0.873347
+75%       1.002600
+max       1.430165
+Name: volatility_ratio_5_21, dtype: float64
+
+2025-03-12 18:02:26,015 - log.logger - INFO - 
+动量:
+2025-03-12 18:02:26,015 - log.logger - INFO -   - momentum_10:
+2025-03-12 18:02:26,015 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: momentum_10, dtype: float64
+2025-03-12 18:02:26,015 - log.logger - INFO -     基本统计:
+count    36.000000
+mean     -0.257358
+std       5.222802
+min     -10.605569
+25%      -3.552082
+50%       0.005318
+75%       3.783536
+max       8.672707
+Name: momentum_10, dtype: float64
+
+2025-03-12 18:02:26,015 - log.logger - INFO -   - momentum_20:
+2025-03-12 18:02:26,015 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: momentum_20, dtype: float64
+2025-03-12 18:02:26,016 - log.logger - INFO -     基本统计:
+count    26.000000
+mean      1.706868
+std       5.273717
+min      -6.495802
+25%      -2.431482
+50%       1.357894
+75%       5.709893
+max      11.038554
+Name: momentum_20, dtype: float64
+
+2025-03-12 18:02:26,016 - log.logger - INFO -   - momentum_50:
+2025-03-12 18:02:26,016 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: momentum_50, dtype: float64
+2025-03-12 18:02:26,016 - log.logger - INFO -     基本统计:
+count    0.0
+mean     NaN
+std      NaN
+min      NaN
+25%      NaN
+50%      NaN
+75%      NaN
+max      NaN
+Name: momentum_50, dtype: float64
+
+2025-03-12 18:02:26,016 - log.logger - INFO -   - roc_10:
+2025-03-12 18:02:26,017 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: roc_10, dtype: float64
+2025-03-12 18:02:26,017 - log.logger - INFO -     基本统计:
+count    36.000000
+mean     -0.257358
+std       5.222802
+min     -10.605569
+25%      -3.552082
+50%       0.005318
+75%       3.783536
+max       8.672707
+Name: roc_10, dtype: float64
+
+2025-03-12 18:02:26,017 - log.logger - INFO -   - roc_20:
+2025-03-12 18:02:26,018 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02   NaN
+2025-01-03   NaN
+2025-01-06   NaN
+2025-01-07   NaN
+2025-01-08   NaN
+Name: roc_20, dtype: float64
+2025-03-12 18:02:26,018 - log.logger - INFO -     基本统计:
+count    26.000000
+mean      1.706868
+std       5.273717
+min      -6.495802
+25%      -2.431482
+50%       1.357894
+75%       5.709893
+max      11.038554
+Name: roc_20, dtype: float64
+
+2025-03-12 18:02:26,018 - log.logger - INFO -   - roc_50:
+2025-03-12 18:02:26,019 - log.logger - INFO -     前5行数据:
+Date
+2025-01-02    None
+2025-01-03    None
+2025-01-06    None
+2025-01-07    None
+2025-01-08    None
+Name: roc_50, dtype: object
+2025-03-12 18:02:26,019 - log.logger - INFO -     基本统计:
+count       0
+unique      0
+top       NaN
+freq      NaN
+Name: roc_50, dtype: object
+
+2025-03-12 18:02:26,019 - log.logger - INFO - 
+其他:
+2025-03-12 18:02:26,019 - log.logger - INFO - 
+开始进行趋势分析...
+2025-03-12 18:02:26,019 - log.logger - INFO - 
+=== 趋势分析报告 ===
+2025-03-12 18:02:26,019 - log.logger - INFO - --------------------------------------------------
+2025-03-12 18:02:26,019 - log.logger - INFO - 综合得分: 12.50%
+2025-03-12 18:02:26,019 - log.logger - INFO - 趋势判断: 下跌趋势
+2025-03-12 18:02:26,019 - log.logger - INFO - 操作建议: 建议离场观望
+2025-03-12 18:02:26,019 - log.logger - INFO - 
+详细分析:
+2025-03-12 18:02:26,019 - log.logger - INFO - - 短期均线在长期均线下方，可能呈现下降趋势
+2025-03-12 18:02:26,019 - log.logger - INFO - - MACD死叉，可能是卖出信号
+2025-03-12 18:02:26,019 - log.logger - INFO - - 价格突破布林带下轨，可能超卖
+2025-03-12 18:02:26,020 - log.logger - INFO - - 成交量高于20日均量，交投活跃
+2025-03-12 18:02:26,020 - log.logger - INFO - - 短期波动率显著高于长期，市场不稳定
+2025-03-12 18:02:26,020 - log.logger - INFO - 
+=== 预测信息 ===
+2025-03-12 18:02:26,020 - log.logger - INFO - --------------------------------------------------
+2025-03-12 18:02:26,020 - log.logger - INFO - 当前收盘价: 220.84
+2025-03-12 18:02:26,020 - log.logger - INFO - 预测下一交易日价格: 220.08
+2025-03-12 18:02:26,020 - log.logger - INFO - 预测涨跌幅: -0.34%
+2025-03-12 18:02:26,022 - log.logger - INFO - 
+结果已保存到文件: /Users/li/AIProject/SpaceExploreAI/data/AAPL_technical_indicators.csv

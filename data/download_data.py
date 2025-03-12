@@ -1,24 +1,23 @@
 import os
+import sys
 import argparse
-import logging
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
+from log.logger import init_logger
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# # 设置日志
+
+logger = init_logger("download_data.log")
 
 
 def download_yahoo_finance_data(
     ticker: str,
     start_date: str,
     end_date: str,
-    output_dir: str
+    output_dir: str,
+    interval: str
 ) -> bool:
     """
     从Yahoo Finance下载股票数据
@@ -36,7 +35,7 @@ def download_yahoo_finance_data(
         logger.info(f"从Yahoo Finance下载股票数据: {ticker}")
         
         # 下载数据
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        data = yf.download(ticker, start=start_date, end=end_date, progress=False, interval=interval)
         
         # 确保下载成功
         if data.empty:
@@ -85,7 +84,7 @@ def download_stocks(args):
     success_count = 0
     for ticker in tqdm(tickers, desc="下载股票数据"):
         if args.source.lower() == 'yahoo':
-            if download_yahoo_finance_data(ticker, args.start_date, args.end_date, args.output_dir):
+            if download_yahoo_finance_data(ticker, args.start_date, args.end_date, args.output_dir, args.interval):
                 success_count += 1
         else:
             logger.error(f"不支持的数据源: {args.source}")
@@ -96,13 +95,13 @@ def download_stocks(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="下载股票历史价格数据")
     
-    parser.add_argument("--tickers", type=str, required=True, help="股票代码，多个用逗号分隔")
-    parser.add_argument("--start_date", type=str, default="2010-01-01", help="开始日期，格式为'YYYY-MM-DD'")
+    parser.add_argument("--tickers", type=str, default="AAPL,MSFT,GOOG,AMZN,TSLA,NVDA,QQQ", help="股票代码，多个用逗号分隔")
+    parser.add_argument("--start_date", type=str, default="2010-03-11", help="开始日期，格式为'YYYY-MM-DD'")
     parser.add_argument("--end_date", type=str, default=datetime.now().strftime("%Y-%m-%d"), help="结束日期，格式为'YYYY-MM-DD'")
     parser.add_argument("--output_dir", type=str, default="../data/raw", help="输出目录")
     parser.add_argument("--source", type=str, default="yahoo", help="数据源，如'yahoo'或'alphavantage'")
-    
+    parser.add_argument("--interval", type=str, default="1d", help="数据间隔，如'1m'或'1d'")
     args = parser.parse_args()
     
-    # 下载股票数据
+    #下载股票数据
     download_stocks(args) 

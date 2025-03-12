@@ -437,4 +437,4 @@ next_price = current_price * (1 + actual_change)
 
 ## 鸣谢
 
-感谢项目合伙人常遵领的日夜奋战、感谢阿姣同学在投资策略上给予的支持和帮助，以及 DeepSeek、LLama3、ChatGPT、Hugging Face在AI领域的探索。
+感谢项目合伙人常尊领的日夜奋战、感谢阿姣同学在投资策略上给予的支持和帮助，以及 DeepSeek、LLama3、ChatGPT、Hugging Face在AI领域的探索。

@@ -5,11 +5,11 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
-from log.logger import init_logger
+from log.logger import get_logger
 
 # # 设置日志
 
-logger = init_logger("download_data.log")
+logger = get_logger(__name__, log_file="download_data.log")
 
 
 def download_yahoo_finance_data(

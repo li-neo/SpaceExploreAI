@@ -7,9 +7,9 @@ import os
 
 # 添加项目根目录到 Python 路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from log.logger import init_logger
+from log.logger import get_logger
 
-logger = init_logger('technical_indicators.log')
+logger = get_logger(__name__, log_file="technical_indicators.log")
 
 
 class TechnicalIndicatorProcessor:

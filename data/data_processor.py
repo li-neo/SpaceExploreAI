@@ -1,5 +1,4 @@
 import os
-import logging
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Union
@@ -10,15 +9,11 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
+from technical_indicators import TechnicalIndicatorProcessor
+from log.logger import get_logger
+import sys
 
-from .technical_indicators import TechnicalIndicatorProcessor
-
-# 设置日志记录
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, log_file="data_processor.log")
 
 
 class StockDataProcessor:
@@ -76,8 +71,12 @@ class StockDataProcessor:
         
         # 复制数据框
         clean_df = df.copy()
+
+        # 处理多级索引列名，只保留第一级
+        if isinstance(clean_df.columns, pd.MultiIndex):
+            clean_df.columns = clean_df.columns.get_level_values(0)
         
-        # 标准化列名（转换为小写）
+        # 确保列名都是小写的
         clean_df.columns = [col.lower() for col in clean_df.columns]
         
         # 将日期列转换为日期时间类型
@@ -92,17 +91,25 @@ class StockDataProcessor:
         # 对于OHLC价格数据，使用前向填充
         for col in ['open', 'high', 'low', 'close', 'adj_close']:
             if col in clean_df.columns:
-                clean_df[col].fillna(method='ffill', inplace=True)
+                clean_df[col] = clean_df[col].ffill()
                 
         # 对于成交量等数据，可以用0或均值填充
         if 'volume' in clean_df.columns:
-            clean_df['volume'].fillna(clean_df['volume'].mean(), inplace=True)
+            clean_df['volume'] = clean_df['volume'].fillna(clean_df['volume'].mean())
             
         # 移除仍然有缺失值的行
         clean_df.dropna(inplace=True)
+
+        if clean_df.empty:
+            logger.error("数据清洗后数据为空")
+            sys.exit(1)
         
         # 移除重复的行
         clean_df.drop_duplicates(inplace=True)
+
+        if clean_df.empty:
+            logger.error("移除重复行后数据为空")
+            sys.exit(1)
         
         # 移除异常值 (可选，根据需要打开此功能)
         # clean_df = self._remove_outliers(clean_df)
@@ -160,12 +167,12 @@ class StockDataProcessor:
         if feature_groups is None:
             feature_groups = ['technical', 'time', 'lag', 'return']
             
-        # 添加技术指标
-        if 'technical' in feature_groups or 'all' in feature_groups:
-            if technical_indicators is None:
-                result_df = self.tech_processor.calculate_all_indicators(result_df)
-            else:
-                result_df = self.tech_processor.process_stock_data(result_df, technical_indicators)
+        # 添加技术指标(不添加任何指标， 从原始数据上开始训练)
+        # if 'technical' in feature_groups or 'all' in feature_groups:
+        #     if technical_indicators is None:
+        #         result_df = self.tech_processor.calculate_all_indicators(result_df)
+        #     else:
+        #         result_df = self.tech_processor.process_stock_data(result_df, technical_indicators)
                 
         # 添加时间特征
         if ('time' in feature_groups or 'all' in feature_groups) and 'date' in result_df.columns:
@@ -302,9 +309,16 @@ class StockDataProcessor:
         # 确保数据按日期排序
         if 'date' in df.columns:
             df = df.sort_values('date')
+
+        df.fillna(0, inplace=True)
             
         # 移除有缺失值的行
-        df.dropna(inplace=True)
+        # df.dropna(inplace=True)
+        # 将df输出到csv
+        df.to_csv("data/processed/data_before_split.csv", index=False)
+        if df.empty:
+            logger.error("移除缺失值后数据为空, 请检查数据中哪些是空值")
+            sys.exit(1)
         
         # 分割数据集
         n = len(df)
@@ -345,6 +359,10 @@ class StockDataProcessor:
             包含缩放后数据的字典
         """
         logger.info("正在缩放特征...")
+        
+        if train_df.empty:
+            logger.warning("Training DataFrame is empty. Check data processing steps.")
+            return None
         
         # 如果未指定特征列，使用所有数值列
         if feature_columns is None:
@@ -672,29 +690,55 @@ if __name__ == "__main__":
     
     # 获取股票数据
     ticker = "AAPL"
-    start_date = "2010-01-01"
-    end_date = "2023-01-01"
+    start_date = "2020-01-01"
+    end_date = datetime.now().strftime("%Y-%m-%d")
     
     # 使用yfinance下载数据，作为示例
-    data = yf.download(ticker, start=start_date, end=end_date)
+    data = yf.download(ticker, start=start_date, end=end_date, interval="1d")
     data.reset_index(inplace=True)  # 将日期从索引转为列
     data['ticker'] = ticker  # 添加ticker列
     
+    # 在数据下载后检查数据是否为空
+    if data.empty:
+        logger.error(f"未能获取到 {ticker} 的数据")
+        sys.exit(1)
+
+    logger.info(f"\n原始数据预览:")
+    
+    logger.info("-" * 50)
+    logger.info(f"数据形状: {data.shape}")
+    logger.info(f"数据列名: {data.columns.tolist()}")
+    logger.info(f"数据预览:\n{data.head()}")
+    logger.info("-" * 50)
+
     # 创建数据处理器
     processor = StockDataProcessor(
-        raw_data_dir="./data/raw", 
-        processed_data_dir="./data/processed"
+        raw_data_dir="./SpaceExploreAI/data/raw", 
+        processed_data_dir="./SpaceExploreAI/data/processed"
     )
     
     # 清洗数据
     clean_data = processor.clean_stock_data(data)
     
+    # 在数据清洗后检查数据是否为空
+    if clean_data.empty:
+        logger.error("清洗后的数据为空，请检查数据清洗步骤。")
+        sys.exit(1)
+
     # 添加特征
     processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return'])
-    
+    if processed_data.empty:
+        logger.error("添加特征后数据为空")
+        sys.exit(1)
+
     # 准备数据集分割
     splits = processor.prepare_dataset_splits(processed_data)
     
+    # 在数据分割后检查数据集是否为空
+    if splits['train'].empty or splits['val'].empty or splits['test'].empty:
+        logger.error("数据集分割后某个数据集为空，请检查数据分割步骤。")
+        sys.exit(1)
+
     # 缩放特征
     scaled_splits = processor.scale_features(
         splits['train'], 
@@ -704,7 +748,7 @@ if __name__ == "__main__":
     )
     
     # 创建序列数据集
-    sequences = processor.create_sequence_datasets(scaled_splits, target_column='future_return_5d')
+    sequences = processor.create_sequence_datasets(scaled_splits, target_column='future_return_5d', sequence_length=16)
     
     # 创建DataLoader
     dataloaders = create_dataloaders(sequences, batch_size=32)

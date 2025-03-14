@@ -15,6 +15,11 @@ import sys
 
 logger = get_logger(__name__, log_file="data_processor.log")
 
+# 获取当前文件所在目录的绝对路径
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 设置默认的原始数据和处理后数据的目录
+DEFAULT_RAW_DIR = os.path.join(CURRENT_DIR, "raw", "price_history")
+DEFAULT_PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
 
 class StockDataProcessor:
     """
@@ -22,8 +27,8 @@ class StockDataProcessor:
     """
     
     def __init__(self, 
-                 raw_data_dir: str = "../data/raw", 
-                 processed_data_dir: str = "../data/processed",
+                 raw_data_dir: str = DEFAULT_RAW_DIR, 
+                 processed_data_dir: str = DEFAULT_PROCESSED_DIR,
                  scaler_type: str = "robust"):
         """
         初始化股票数据处理器
@@ -315,10 +320,6 @@ class StockDataProcessor:
         # 移除有缺失值的行
         # df.dropna(inplace=True)
         # 将df输出到csv
-        df.to_csv("data/processed/data_before_split.csv", index=False)
-        if df.empty:
-            logger.error("移除缺失值后数据为空, 请检查数据中哪些是空值")
-            sys.exit(1)
         
         # 分割数据集
         n = len(df)
@@ -589,25 +590,52 @@ class StockDataProcessor:
             scaled_splits: 缩放后的数据分割
             sequences: 序列数据
         """
+        # 为每个ticker创建目录
         ticker_dir = os.path.join(self.processed_data_dir, ticker)
-        os.makedirs(ticker_dir, exist_ok=True)
         
-        # 保存原始分割
+        # 保存原始分割到对应目录
         for split, df in splits.items():
-            file_path = os.path.join(ticker_dir, f"{split}_data.csv")
+            # 根据split类型选择对应的目录
+            if split == 'train':
+                save_dir = os.path.join(self.processed_data_dir, "train")
+            elif split == 'val':
+                save_dir = os.path.join(self.processed_data_dir, "eval")
+            else:  # test
+                save_dir = os.path.join(self.processed_data_dir, "test")
+            
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, f"{ticker}_{split}_data.csv")
             df.to_csv(file_path, index=False)
             
-        # 保存缩放后的分割
+        # 保存缩放后的分割到对应目录
         for split, df in scaled_splits.items():
-            file_path = os.path.join(ticker_dir, f"{split}_scaled_data.csv")
+            # 根据split类型选择对应的目录
+            if split == 'train':
+                save_dir = os.path.join(self.processed_data_dir, "train")
+            elif split == 'val':
+                save_dir = os.path.join(self.processed_data_dir, "eval")
+            else:  # test
+                save_dir = os.path.join(self.processed_data_dir, "test")
+            
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, f"{ticker}_{split}_scaled_data.csv")
             df.to_csv(file_path, index=False)
             
-        # 保存序列数据
+        # 保存序列数据到对应目录
         for split, (X, y) in sequences.items():
-            file_path = os.path.join(ticker_dir, f"{split}_sequences.npz")
+            # 根据split类型选择对应的目录
+            if split == 'train':
+                save_dir = os.path.join(self.processed_data_dir, "train")
+            elif split == 'val':
+                save_dir = os.path.join(self.processed_data_dir, "eval")
+            else:  # test
+                save_dir = os.path.join(self.processed_data_dir, "test")
+            
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, f"{ticker}_{split}_sequences.npz")
             np.savez(file_path, X=X, y=y)
             
-        logger.info(f"已保存处理后的数据到 {ticker_dir}")
+        logger.info(f"已保存处理后的数据到对应目录")
     
     def batch_process_stocks(self, 
                             tickers: List[str], 

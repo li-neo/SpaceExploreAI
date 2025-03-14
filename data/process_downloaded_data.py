@@ -4,13 +4,52 @@ from tqdm import tqdm
 import sys
 from data_processor import StockDataProcessor, create_dataloaders
 from log.logger import get_logger
-
+from dataclasses import dataclass
+from typing import List, Optional
 # 设置日志
 logger = get_logger(__name__, log_file="process_downloaded_data.log")
 
+# 获取当前文件所在目录的绝对路径
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 设置默认的原始数据和处理后数据的目录
+DEFAULT_RAW_DIR = os.path.join(CURRENT_DIR, "raw", "price_history")
+DEFAULT_PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
+
+os.makedirs(DEFAULT_PROCESSED_DIR, exist_ok=True)
+
+class DataArgs:
+    """数据处理参数配置类"""
+    raw_dir: str = DEFAULT_RAW_DIR
+    processed_dir: str = DEFAULT_PROCESSED_DIR 
+    
+    # 数据分割配置
+    test_size: float = 0.1
+    val_size: float = 0.1
+    
+    # 序列配置
+    seq_length: int = 60
+    pred_horizon: int = 5
+    
+    # 特征配置
+    feature_groups: List[str] = ['technical', 'time', 'lag', 'return']
+    technical_indicators: Optional[List[str]] = ['SMA', 'EMA', 'RSI', 'MACD', 'BB', 'ATR', 'OBV']
+    
+    # 数据加载配置
+    batch_size: int = 32
+    num_workers: int = 2
+    
+    # 数据缩放配置
+    scaler: str = "robust"
+    
+    # 数据源配置
+    source: str = "yahoo"
+
+    tickers: Optional[List[str]] = None
+    
+
 def process_all_downloaded_stocks(
-    raw_data_dir="./data/raw/price_history",
-    processed_data_dir="./data/processed",
+    raw_data_dir=DEFAULT_RAW_DIR,
+    processed_data_dir=DEFAULT_PROCESSED_DIR,
     test_size=0.1,
     val_size=0.1,
     sequence_length=60,
@@ -151,8 +190,8 @@ def process_all_downloaded_stocks(
 
 def process_specific_stocks(
     tickers,
-    raw_data_dir="./data/raw/price_history",
-    processed_data_dir="./data/processed",
+    raw_data_dir=DEFAULT_RAW_DIR,
+    processed_data_dir=DEFAULT_PROCESSED_DIR,
     **kwargs
 ):
     """
@@ -184,20 +223,7 @@ def process_specific_stocks(
     )
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='处理下载的股票数据')
-    parser.add_argument('--raw_dir', type=str, default='../data/raw/price_history', help='原始数据目录')
-    parser.add_argument('--processed_dir', type=str, default='../data/processed', help='处理后数据存储目录')
-    parser.add_argument('--test_size', type=float, default=0.1, help='测试集比例')
-    parser.add_argument('--val_size', type=float, default=0.1, help='验证集比例')
-    parser.add_argument('--seq_length', type=int, default=60, help='序列长度')
-    parser.add_argument('--pred_horizon', type=int, default=5, help='预测周期')
-    parser.add_argument('--batch_size', type=int, default=32, help='批处理大小')
-    parser.add_argument('--scaler', type=str, default='robust', choices=['standard', 'minmax', 'robust'], help='缩放器类型')
-    parser.add_argument('--tickers', type=str, nargs='*', help='指定要处理的股票代码列表')
-    
-    args = parser.parse_args()
+    args = DataArgs()
     
     # 设置特征组
     feature_groups = ['technical', 'time', 'lag', 'return']

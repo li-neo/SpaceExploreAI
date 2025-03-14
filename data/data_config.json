@@ -1,0 +1,14 @@
+{
+    "raw_data_dir": "data/raw/price_history",
+    "processed_data_dir": "data/processed",
+    "test_size": 0.1,
+    "val_size": 0.1,
+    "sequence_length": 60,
+    "prediction_horizon": 5,
+    "feature_groups": ["technical", "time", "lag", "return"],
+    "technical_indicators": ["SMA", "EMA", "RSI", "MACD", "BB"],
+    "batch_size": 32,
+    "num_workers": 2,
+    "scaler_type": "robust",
+    "source": "yahoo"
+}

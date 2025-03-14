@@ -1,3 +1,91 @@
+# 数据目录结构说明
+
+```
+data/
+├── raw/                      # 原始数据目录
+│   ├── price_history/       # 股票价格历史数据
+│   │   ├── AAPL/           # 按股票代码分类的目录
+│   │   │   ├── daily.csv   # 日线数据
+│   │   │   └── minute.csv  # 分钟线数据
+│   │   └── ...
+│   ├── fundamental/        # 基本面数据
+│   │   ├── financial/      # 财务数据
+│   │   └── company_info/   # 公司信息
+│   └── market_data/        # 市场数据
+│       ├── indices/        # 指数数据
+│       └── sectors/        # 行业数据
+│
+├── processed/              # 处理后的数据目录
+│   ├── features/          # 特征数据
+│   │   ├── technical/     # 技术指标
+│   │   ├── fundamental/   # 基本面特征
+│   │   └── market/        # 市场特征
+│   ├── sequences/         # 序列数据
+│   │   ├── train/        # 训练集序列
+│   │   ├── val/          # 验证集序列
+│   │   └── test/         # 测试集序列
+│   └── scalers/          # 数据缩放器
+│
+├── models/                # 模型相关数据
+│   ├── checkpoints/      # 模型检查点
+│   ├── predictions/      # 模型预测结果
+│   └── evaluation/       # 模型评估结果
+│
+└── config/               # 配置文件目录
+    ├── data_config.yaml  # 数据处理配置
+    └── model_config.yaml # 模型配置
+```
+
+## 目录说明
+
+### raw/ - 原始数据目录
+- `price_history/`: 存储从数据源下载的原始股票价格数据
+  - 按股票代码分类存储
+  - 包含日线、分钟线等不同时间粒度的数据
+- `fundamental/`: 存储基本面数据
+  - 包含财务报表、公司信息等
+- `market_data/`: 存储市场整体数据
+  - 包含指数、行业数据等
+
+### processed/ - 处理后的数据目录
+- `features/`: 存储处理后的特征数据
+  - 技术指标：如MA、RSI、MACD等
+  - 基本面特征：如财务比率、估值指标等
+  - 市场特征：如市场情绪、行业景气度等
+- `sequences/`: 存储用于模型训练的序列数据
+  - 按训练集、验证集、测试集分类
+  - 包含特征序列和目标变量
+- `scalers/`: 存储数据标准化/归一化的缩放器
+  - 用于保持训练集和测试集的一致性
+
+### models/ - 模型相关数据目录
+- `checkpoints/`: 存储模型训练过程中的检查点
+- `predictions/`: 存储模型的预测结果
+- `evaluation/`: 存储模型评估指标和结果
+
+### config/ - 配置文件目录
+- `data_config.yaml`: 数据处理相关的配置参数
+- `model_config.yaml`: 模型训练相关的配置参数
+
+## 使用说明
+
+1. 数据获取：
+   - 使用 `download_data.py` 从数据源下载原始数据
+   - 数据将保存在 `raw/` 目录下
+
+2. 数据处理：
+   - 使用 `process_downloaded_data.py` 处理原始数据
+   - 处理后的数据将保存在 `processed/` 目录下
+
+3. 模型训练：
+   - 使用 `train_model.py` 训练模型
+   - 模型检查点将保存在 `models/checkpoints/` 目录下
+
+4. 预测和评估：
+   - 使用 `predict.py` 进行预测
+   - 预测结果将保存在 `models/predictions/` 目录下
+   - 评估结果将保存在 `models/evaluation/` 目录下
+
 ## 数据缩放（标准化/归一化）
 
 ### 一、数据缩放的核心作用
@@ -22,7 +110,7 @@
      - 短期价格波动（如分钟级K线）的细节捕捉；  
      - 需要固定输入范围的模型（如LSTM、CNN）。
    - **优点**：直观反映价格在周期内的相对位置。  
-   - **注意**：若存在极端值（如“天地板”行情），可能压缩正常数据范围。
+   - **注意**：若存在极端值（如"天地板"行情），可能压缩正常数据范围。
 
 #### 3. **鲁棒缩放（RobustScaler）**
    - **原理**：基于中位数和四分位距（IQR）缩放，公式：\( X_{\text{robust}} = \frac{X - \text{Median}}{\text{IQR}} \)。

@@ -27,11 +27,11 @@ class DataArgs:
     val_size: float = 0.1
     
     # 序列配置
-    seq_length: int = 60
-    pred_horizon: int = 5
+    seq_length: int = 32
+    pred_horizon: int = 2
     
     # 特征配置
-    feature_groups: List[str] = ['technical', 'time', 'lag', 'return']
+    feature_groups: List[str] = ['technical', 'time', 'lag', 'return', 'volatility']
     technical_indicators: Optional[List[str]] = ['SMA', 'EMA', 'RSI', 'MACD', 'BB', 'ATR', 'OBV']
     
     # 数据加载配置
@@ -52,8 +52,8 @@ def process_all_downloaded_stocks(
     processed_data_dir=DEFAULT_PROCESSED_DIR,
     test_size=0.1,
     val_size=0.1,
-    sequence_length=60,
-    prediction_horizon=5,
+    sequence_length=32,
+    prediction_horizon=2,
     feature_groups=None,
     batch_size=32,
     scaler_type="robust"
@@ -68,7 +68,7 @@ def process_all_downloaded_stocks(
         val_size: 验证集比例
         sequence_length: 序列长度
         prediction_horizon: 预测周期
-        feature_groups: 要添加的特征组，默认为 ['technical', 'time', 'lag', 'return']
+        feature_groups: 要添加的特征组，默认为 ['technical', 'time', 'lag', 'return', 'volatility']
         batch_size: 批处理大小
         scaler_type: 数据标准化方式
     
@@ -76,7 +76,9 @@ def process_all_downloaded_stocks(
         处理结果的字典
     """
     if feature_groups is None:
-        feature_groups = ['technical', 'time', 'lag', 'return']
+        feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
+    
+    logger.info(f"处理参数: 序列长度={sequence_length}, 预测周期={prediction_horizon}, 特征组={feature_groups}")
     
     # 创建数据处理器
     processor = StockDataProcessor(
@@ -138,9 +140,31 @@ def process_all_downloaded_stocks(
                 
             # 添加特征
             processed_df = processor.add_features(clean_df, feature_groups)
+
+            # 输出processed_df维度信息
+            logger.info(f"{ticker} processed_df维度信息: {processed_df.shape}")
+            
+            # 检查目标列是否存在
+            target_column = f'future_return_{prediction_horizon}d'
+            if target_column not in processed_df.columns:
+                logger.error(f"{ticker} 数据中不存在目标列 {target_column}！")
+                future_return_cols = [col for col in processed_df.columns if col.startswith('future_return_')]
+                if future_return_cols:
+                    logger.info(f"可用的未来收益率列: {future_return_cols}")
+                    # 使用第一个可用的未来收益率列
+                    target_column = future_return_cols[0]
+                    logger.info(f"改用 {target_column} 作为目标列")
+                    # 从列名中提取预测周期
+                    try:
+                        prediction_horizon = int(target_column.split('_')[-1].replace('d', ''))
+                        logger.info(f"更新预测周期为: {prediction_horizon}")
+                    except:
+                        logger.warning(f"无法从列名 {target_column} 提取预测周期")
+                else:
+                    logger.error(f"{ticker} 数据中不存在任何未来收益率列，跳过处理")
+                    continue
             
             # 准备数据集分割
-            target_column = f'future_return_{prediction_horizon}d'
             splits = processor.prepare_dataset_splits(
                 processed_df,
                 test_size=test_size,
@@ -165,6 +189,13 @@ def process_all_downloaded_stocks(
                 sequence_length=sequence_length
             )
             
+            # 检查序列数据
+            for split, (X, y) in sequences.items():
+                if len(y) == 0:
+                    logger.error(f"{ticker} {split} 目标值数组为空！")
+                    # 如果目标值为空，跳过保存
+                    continue
+            
             # 保存处理后的数据和缩放器
             processor.save_processed_data(ticker, splits, scaled_splits, sequences)
             processor.save_scalers(ticker)
@@ -180,7 +211,7 @@ def process_all_downloaded_stocks(
                 'dataloaders': dataloaders
             }
             
-            logger.info(f"{ticker} 处理完成")
+            logger.info(f"{ticker} 处理完成，sequences维度信息: {sequences['train'][0].shape}, {sequences['train'][1].shape}")
             
         except Exception as e:
             logger.error(f"处理 {ticker} 时出错: {str(e)}", exc_info=True)
@@ -216,9 +247,9 @@ def process_specific_stocks(
         source='yahoo',  # 假设数据来源是yahoo
         test_size=kwargs.get('test_size', 0.1),
         val_size=kwargs.get('val_size', 0.1),
-        sequence_length=kwargs.get('sequence_length', 60),
-        prediction_horizon=kwargs.get('prediction_horizon', 5),
-        feature_groups=kwargs.get('feature_groups', ['technical', 'time', 'lag', 'return']),
+        sequence_length=kwargs.get('sequence_length', 32),
+        prediction_horizon=kwargs.get('prediction_horizon', 2),
+        feature_groups=kwargs.get('feature_groups', ['technical', 'time', 'lag', 'return', 'volatility']),
         save_data=True
     )
 
@@ -226,7 +257,7 @@ if __name__ == "__main__":
     args = DataArgs()
     
     # 设置特征组
-    feature_groups = ['technical', 'time', 'lag', 'return']
+    feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
     
     if args.tickers:
         # 处理指定的股票

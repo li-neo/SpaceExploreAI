@@ -55,6 +55,7 @@ class ModelArgs():
 
     """
     # 数据相关参数
+    feature_dim: int = 64  # 特征维度,输入特征的维度大小, 对应数据的数值列64个列
     raw_data_dir: str = "data/raw"  # 原始数据目录路径
     processed_data_dir: str = "data/processed"  # 处理后数据存储目录路径
     tickers: str = "TSLA"  # 股票代码,多个股票代码用逗号分隔,如"TSLA,AAPL,GOOG"
@@ -64,7 +65,7 @@ class ModelArgs():
     scaler_type: str = "robust"  # 数据缩放器类型,可选"standard"(标准化)、"minmax"(最小最大化)或"robust"(稳健缩放)
     test_size: float = 0.1  # 测试集比例,占总数据的10%
     val_size: float = 0.1  # 验证集比例,占总数据的10%
-    sequence_length: int = 32  # 输入序列长度,即每个样本包含的时间步数,较小的值可降低内存使用
+    sequence_length: int = 32  # 输入序列长度,即每个样本包含的时间步数,较小的值可降低内存使用,应该与数据处理的seq保持一致 DataArgs.seq_length
     max_sequence_length: int = 128  # 模型能处理的最大序列长度,用于定义模型架构的上限
     prediction_horizon: int = 2  # 预测周期,即预测未来多少个时间步
     feature_groups: str = None  # 特征组,指定使用哪些特征组,多个用逗号分隔

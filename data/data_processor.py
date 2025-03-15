@@ -159,7 +159,7 @@ class StockDataProcessor:
         
         参数:
             df: 输入数据框
-            feature_groups: 要添加的特征组，可包含: 'technical', 'time', 'lag', 'return', 'all'
+            feature_groups: 要添加的特征组，可包含: 'technical', 'time', 'lag', 'return', 'volatility', 'all'
             technical_indicators: 具体要添加的技术指标列表，None则添加全部
             
         返回:
@@ -170,7 +170,9 @@ class StockDataProcessor:
         result_df = df.copy()
         
         if feature_groups is None:
-            feature_groups = ['technical', 'time', 'lag', 'return']
+            feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
+            
+        logger.info(f"要添加的特征组: {feature_groups}")
             
         # 添加技术指标(不添加任何指标， 从原始数据上开始训练)
         # if 'technical' in feature_groups or 'all' in feature_groups:
@@ -183,21 +185,73 @@ class StockDataProcessor:
         if ('time' in feature_groups or 'all' in feature_groups) and 'date' in result_df.columns:
             if 'day_of_week' not in result_df.columns:  # 避免重复添加
                 result_df = self.tech_processor.add_time_features(result_df)
+                logger.info("已添加时间特征")
                 
         # 添加滞后特征
         if 'lag' in feature_groups or 'all' in feature_groups:
             result_df = self._add_lag_features(result_df)
+            logger.info("已添加滞后特征")
                 
         # 添加收益率特征
         if 'return' in feature_groups or 'all' in feature_groups:
-            result_df = self._add_return_features(result_df)
+            # 确保包含预测周期2
+            periods = [1, 2, 5, 10]
+            result_df = self._add_return_features(result_df, periods=periods)
+            logger.info("已添加收益率特征")
             
+            # 检查是否成功创建了未来收益率列
+            future_return_cols = [col for col in result_df.columns if col.startswith('future_return_')]
+            if future_return_cols:
+                logger.info(f"创建的未来收益率列: {future_return_cols}")
+            else:
+                logger.error("未能创建任何未来收益率列！")
+            
+        # 添加波动性特征
+        if 'volatility' in feature_groups or 'all' in feature_groups:
+            result_df = self._add_volatility_features(result_df)
+            logger.info("已添加波动性特征")
+
+        # 添加成交量特征
+        if 'volume' in feature_groups or 'all' in feature_groups:
+            result_df = self._add_volume_features(result_df)
+            logger.info("已添加成交量特征")
+            
+        # 输出最终特征列
+        logger.info(f"最终数据形状: {result_df.shape}, 列数: {len(result_df.columns)}")
+        logger.info(f"特征列名: {result_df.columns.tolist()}")
+        
         return result_df
+    
+    def _add_volume_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        添加成交量特征
+        
+        参数:
+            df: 输入数据框
+            
+        返回:
+            添加了成交量特征的数据框
+            
+        注意:
+            - volume_change_rate 的第一个值会是 NaN，因为没有前一个值可以计算变化率
+            - 我们使用 0 填充这个 NaN 值，因为这表示没有变化
+        """
+        result_df = df.copy()
+        
+        # 计算成交量变化率
+        result_df['volume_change_rate'] = result_df['volume'].pct_change()
+        
+        # 将第一个 NaN 值填充为 0，因为第一个数据点没有变化率
+        result_df['volume_change_rate'] = result_df['volume_change_rate'].fillna(0)
+        
+        return result_df
+        
+        
     
     def _add_lag_features(self, 
                          df: pd.DataFrame, 
                          columns: List[str] = None, 
-                         lags: List[int] = [1, 2, 3, 5, 10, 21]) -> pd.DataFrame:
+                         lags: List[int] = [1, 2, 3, 5, 10]) -> pd.DataFrame:
         """
         添加滞后特征
         
@@ -224,7 +278,7 @@ class StockDataProcessor:
     def _add_return_features(self, 
                             df: pd.DataFrame, 
                             price_col: str = 'close', 
-                            periods: List[int] = [1, 5, 10, 21, 63]) -> pd.DataFrame:
+                            periods: List[int] = [1, 5, 10, 21]) -> pd.DataFrame:
         """
         添加收益率特征
         
@@ -238,14 +292,134 @@ class StockDataProcessor:
         """
         result_df = df.copy()
         
+        # 检查价格列是否存在
+        if price_col not in result_df.columns:
+            logger.error(f"价格列 {price_col} 不存在于数据框中，无法计算收益率特征")
+            return result_df
+            
         # 添加未来收益率（作为预测目标）
         for period in periods:
-            result_df[f'future_return_{period}d'] = (result_df[price_col].shift(-period) / result_df[price_col] - 1) * 100
+            future_return_col = f'future_return_{period}d'
+            result_df[future_return_col] = (result_df[price_col].shift(-period) / result_df[price_col] - 1) * 100
+            
+            # 检查创建的未来收益率列
+            non_null_count = result_df[future_return_col].count()
+            total_count = len(result_df)
+            logger.info(f"创建了 {future_return_col} 列: 非空值数量={non_null_count}, 总行数={total_count}, 非空比例={non_null_count/total_count:.2%}")
             
         # 添加历史收益率
         for period in periods:
-            result_df[f'past_return_{period}d'] = (result_df[price_col] / result_df[price_col].shift(period) - 1) * 100
+            past_return_col = f'past_return_{period}d'
+            result_df[past_return_col] = (result_df[price_col] / result_df[price_col].shift(period) - 1) * 100
             
+            # 检查创建的历史收益率列
+            non_null_count = result_df[past_return_col].count()
+            total_count = len(result_df)
+            logger.info(f"创建了 {past_return_col} 列: 非空值数量={non_null_count}, 总行数={total_count}, 非空比例={non_null_count/total_count:.2%}")
+            
+        return result_df
+    
+    def _add_volatility_features(self, 
+                               df: pd.DataFrame, 
+                               windows: List[int] = [5, 10, 21]) -> pd.DataFrame:
+        """
+        添加波动性相关特征
+        
+        参数:
+            df: 输入数据框
+            windows: 计算窗口大小列表
+            
+        返回:
+            添加了波动性特征的数据框
+        """
+        result_df = df.copy()
+        
+        # 检查必要的列是否存在
+        required_cols = ['high', 'low', 'close', 'open', 'volume']
+        missing_cols = [col for col in required_cols if col not in result_df.columns]
+        if missing_cols:
+            logger.warning(f"缺少计算波动性特征所需的列: {missing_cols}")
+            
+        # 1. 当日波动范围 (高-低)/收盘价
+        if 'high' in result_df.columns and 'low' in result_df.columns and 'close' in result_df.columns:
+            result_df['daily_range'] = (result_df['high'] - result_df['low']) / result_df['close'] * 100
+            logger.info("添加了当日波动范围特征: daily_range")
+            
+        # 2. 当日波动绝对值 (高-低)
+        if 'high' in result_df.columns and 'low' in result_df.columns:
+            result_df['daily_range_abs'] = result_df['high'] - result_df['low']
+            logger.info("添加了当日波动绝对值特征: daily_range_abs")
+            
+        # 3. 开盘跳空 (开盘价-前日收盘价)/前日收盘价
+        if 'open' in result_df.columns and 'close' in result_df.columns:
+            result_df['gap'] = (result_df['open'] - result_df['close'].shift(1)) / result_df['close'].shift(1) * 100
+            logger.info("添加了开盘跳空特征: gap")
+            
+        # 4. 收盘价与开盘价的差距 (收盘价-开盘价)/开盘价
+        if 'close' in result_df.columns and 'open' in result_df.columns:
+            result_df['close_to_open'] = (result_df['close'] - result_df['open']) / result_df['open'] * 100
+            logger.info("添加了收盘与开盘差距特征: close_to_open")
+            
+        # 5. 收盘价与当日最高价的差距 (收盘价-最高价)/最高价
+        if 'close' in result_df.columns and 'high' in result_df.columns:
+            result_df['close_to_high'] = (result_df['close'] - result_df['high']) / result_df['high'] * 100
+            logger.info("添加了收盘与最高价差距特征: close_to_high")
+            
+        # 6. 收盘价与当日最低价的差距 (收盘价-最低价)/最低价
+        if 'close' in result_df.columns and 'low' in result_df.columns:
+            result_df['close_to_low'] = (result_df['close'] - result_df['low']) / result_df['low'] * 100
+            logger.info("添加了收盘与最低价差距特征: close_to_low")
+            
+        # 7. 不同窗口的波动率 (标准差)
+        if 'close' in result_df.columns:
+            for window in windows:
+                result_df[f'volatility_{window}d'] = result_df['close'].pct_change().rolling(window=window).std() * 100
+                logger.info(f"添加了{window}日波动率特征: volatility_{window}d")
+                
+        # 8. 不同窗口的平均真实范围 (ATR)
+        if 'high' in result_df.columns and 'low' in result_df.columns and 'close' in result_df.columns:
+            # 计算前一日收盘价
+            close_prev = result_df['close'].shift(1)
+            
+            # 计算TR的三个部分
+            tr1 = result_df['high'] - result_df['low']
+            tr2 = (result_df['high'] - close_prev).abs()
+            tr3 = (result_df['low'] - close_prev).abs()
+            
+            # 合并并取每行的最大值，NaN自动处理
+            result_df['tr'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            
+            # 计算不同窗口的ATR
+            for window in windows:
+                result_df[f'atr_{window}d'] = result_df['tr'].rolling(window=window).mean()
+                logger.info(f"添加了{window}日平均真实范围特征: atr_{window}d")
+                
+            # 删除临时TR列
+            result_df.drop('tr', axis=1, inplace=True)
+            
+        # 9. 价格动量 (当前价格/n日前价格 - 1)
+        if 'close' in result_df.columns:
+            for window in windows:
+                result_df[f'momentum_{window}d'] = (result_df['close'] / result_df['close'].shift(window) - 1) * 100
+                logger.info(f"添加了{window}日价格动量特征: momentum_{window}d")
+                
+        # 10. 成交量变化率
+        if 'volume' in result_df.columns:
+            for window in windows:
+                result_df[f'volume_change_{window}d'] = (result_df['volume'] / result_df['volume'].rolling(window=window).mean() - 1) * 100
+                logger.info(f"添加了{window}日成交量变化率特征: volume_change_{window}d")
+                
+        # 11. 价格与移动平均线的差距
+        if 'close' in result_df.columns:
+            for window in windows:
+                ma_col = f'ma_{window}d'
+                result_df[ma_col] = result_df['close'].rolling(window=window).mean()
+                result_df[f'close_to_{ma_col}'] = (result_df['close'] / result_df[ma_col] - 1) * 100
+                logger.info(f"添加了收盘价与{window}日均线差距特征: close_to_{ma_col}")
+                
+                # 删除临时MA列
+                result_df.drop(ma_col, axis=1, inplace=True)
+                
         return result_df
     
     def load_and_process_stock_data(self, 
@@ -294,8 +468,8 @@ class StockDataProcessor:
                               df: pd.DataFrame,
                               test_size: float = 0.1,
                               val_size: float = 0.1,
-                              sequence_length: int = 60,
-                              prediction_horizon: int = 5,
+                              sequence_length: int = 32,
+                              prediction_horizon: int = 2,
                               target_column: str = 'future_return_5d') -> Dict[str, pd.DataFrame]:
         """
         准备训练、验证和测试数据集
@@ -450,13 +624,13 @@ class StockDataProcessor:
                 with open(file_path, 'rb') as f:
                     self.scalers[name] = pickle.load(f)
                     
-        logger.info(f"已加载缩放器")
+        logger.info(f"已加载{ticker}:features,target缩放器")
     
     def create_sequence_datasets(self, 
                                data_dict: Dict[str, pd.DataFrame],
                                feature_columns: List[str] = None,
                                target_column: str = 'future_return_5d',
-                               sequence_length: int = 60) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
+                               sequence_length: int = 32) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
         """
         创建序列数据集
         
@@ -469,17 +643,29 @@ class StockDataProcessor:
         返回:
             包含序列数据的字典
         """
-        logger.info(f"正在创建序列数据集，序列长度：{sequence_length}")
+        logger.info(f"正在创建序列数据集，序列长度：{sequence_length}，目标列：{target_column}")
+        
+        # 检查目标列是否存在于数据框中
+        for split, df in data_dict.items():
+            if target_column in df.columns:
+                non_null_count = df[target_column].count()
+                total_count = len(df)
+                logger.info(f"{split} 集中 {target_column} 列: 非空值数量={non_null_count}, 总行数={total_count}, 非空比例={non_null_count/total_count:.2%}")
+            else:
+                logger.error(f"{split} 集中不存在 {target_column} 列！")
         
         # 如果未指定特征列，使用所有数值列
         if feature_columns is None:
             # 排除日期、目标列和非数值列
-            exclude_cols = ['date', 'ticker', target_column]
-            if target_column is not None:
+            exclude_cols = ['date', 'ticker']
+            # 只添加一次目标列到排除列表
+            if target_column is not None and target_column not in exclude_cols:
                 exclude_cols.append(target_column)
                 
             feature_columns = [col for col in data_dict['train'].columns 
                              if col not in exclude_cols and pd.api.types.is_numeric_dtype(data_dict['train'][col])]
+            
+            logger.info(f"自动选择了 {len(feature_columns)} 个特征列")
             
         result = {}
         
@@ -487,19 +673,33 @@ class StockDataProcessor:
             sequences = []
             targets = []
             
+            # 检查目标列是否存在
+            if target_column not in df.columns:
+                logger.error(f"{split} 集中不存在目标列 {target_column}，无法创建目标值")
+                continue
+                
             for i in range(len(df) - sequence_length):
                 # 提取特征序列
                 seq = df.iloc[i:i+sequence_length][feature_columns].values
                 sequences.append(seq)
                 
                 # 提取目标值（序列末尾的未来收益率）
-                if target_column in df.columns:
-                    target = df.iloc[i+sequence_length-1][target_column]
+                target = df.iloc[i+sequence_length-1][target_column]
+                # 确保目标值不是 NaN
+                if pd.notna(target):
                     targets.append(target)
+                else:
+                    # 如果目标值是 NaN，使用 0 填充（或者其他合适的默认值）
+                    targets.append(0.0)
+                    logger.debug(f"在 {split} 集的索引 {i+sequence_length-1} 处发现 NaN 目标值，已用 0 填充")
             
             if sequences:
                 result[split] = (np.array(sequences), np.array(targets))
-                logger.info(f"{split} 集创建了 {len(sequences)} 个序列")
+                logger.info(f"{split} 集创建了 {len(sequences)} 个序列，目标值数量: {len(targets)}")
+                
+                # 检查序列和目标的长度是否匹配
+                if len(sequences) != len(targets):
+                    logger.error(f"{split} 集的序列数量 ({len(sequences)}) 与目标值数量 ({len(targets)}) 不匹配！")
             else:
                 logger.warning(f"{split} 集没有足够的数据创建序列")
                 
@@ -510,8 +710,8 @@ class StockDataProcessor:
                              source: str = 'yahoo',
                              test_size: float = 0.1,
                              val_size: float = 0.1,
-                             sequence_length: int = 60,
-                             prediction_horizon: int = 5,
+                             sequence_length: int = 32,
+                             prediction_horizon: int = 2,
                              feature_groups: List[str] = None,
                              save_data: bool = True) -> Dict:
         """
@@ -539,6 +739,22 @@ class StockDataProcessor:
             
         # 2. 准备数据集分割
         target_column = f'future_return_{prediction_horizon}d'
+        logger.info(f"使用目标列: {target_column}")
+        
+        # 检查目标列是否存在
+        if target_column not in df.columns:
+            logger.error(f"目标列 {target_column} 不存在于处理后的数据中！")
+            # 检查所有可能的未来收益率列
+            future_return_cols = [col for col in df.columns if col.startswith('future_return_')]
+            if future_return_cols:
+                logger.info(f"数据中存在的未来收益率列: {future_return_cols}")
+                # 使用第一个可用的未来收益率列作为目标
+                target_column = future_return_cols[0]
+                logger.info(f"改用 {target_column} 作为目标列")
+            else:
+                logger.error(f"数据中不存在任何未来收益率列，无法继续处理")
+                return None
+        
         splits = self.prepare_dataset_splits(
             df, 
             test_size=test_size, 
@@ -562,6 +778,12 @@ class StockDataProcessor:
             target_column=target_column,
             sequence_length=sequence_length
         )
+        
+        # 检查序列数据
+        for split, (X, y) in sequences.items():
+            logger.info(f"{split} 序列数据: X形状={X.shape}, y形状={y.shape}")
+            if len(y) == 0:
+                logger.error(f"{split} 目标值数组为空！")
         
         # 5. 保存数据和缩放器
         if save_data:

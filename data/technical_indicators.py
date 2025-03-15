@@ -447,10 +447,8 @@ class TechnicalIndicatorProcessor:
         result_df['year'] = result_df['date'].dt.year
         result_df['is_month_start'] = result_df['date'].dt.is_month_start.astype(int)
         result_df['is_month_end'] = result_df['date'].dt.is_month_end.astype(int)
-        result_df['is_quarter_start'] = result_df['date'].dt.is_quarter_start.astype(int)
-        result_df['is_quarter_end'] = result_df['date'].dt.is_quarter_end.astype(int)
-        result_df['is_year_start'] = result_df['date'].dt.is_year_start.astype(int)
-        result_df['is_year_end'] = result_df['date'].dt.is_year_end.astype(int)
+        result_df['is_week_start'] = result_df['date'].dt.dayofweek == 0
+        result_df['is_week_end'] = result_df['date'].dt.dayofweek == 4
         
         return result_df
     

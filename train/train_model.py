@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 
 from model.transformer import StockTransformerModel, StockPricePredictor
 from data.data_processor import StockDataProcessor, StockDataset, create_dataloaders
+from train.model_args import ModelArgs
 from trainer import StockModelTrainer
 from log.logger import get_logger
 
@@ -15,7 +16,7 @@ from log.logger import get_logger
 logger = get_logger(__file__, log_file="train_model.log")
 
 
-def train_stock_model(args):
+def train_model(args: ModelArgs):
     """
     训练股票预测模型的主函数
     
@@ -60,14 +61,18 @@ def train_stock_model(args):
         logger.info(f"处理股票 {ticker}...")
         
         # 如果已经处理过且不需要重新处理，直接加载
-        if args.load_processed and os.path.exists(os.path.join(args.processed_data_dir, ticker)):
+        if args.load_processed and os.path.exists(os.path.join(args.processed_data_dir, "train")):
             logger.info(f"加载已处理的数据 {ticker}...")
             
             # 加载序列数据
-            train_seq = np.load(os.path.join(args.processed_data_dir, ticker, "train_sequences.npz"))
-            val_seq = np.load(os.path.join(args.processed_data_dir, ticker, "val_sequences.npz"))
-            test_seq = np.load(os.path.join(args.processed_data_dir, ticker, "test_sequences.npz"))
+            train_seq = np.load(os.path.join(args.processed_data_dir, "train", "{}_train_sequences.npz".format(ticker)))
+            val_seq = np.load(os.path.join(args.processed_data_dir, "eval", "{}_val_sequences.npz".format(ticker)))
+            test_seq = np.load(os.path.join(args.processed_data_dir, "test", "{}_test_sequences.npz".format(ticker)))
             
+            # 输出X, y 维度信息
+            logger.info(f"训练集{ticker} :X, y 维度信息: {train_seq['X'].shape}, {train_seq['y'].shape}")
+            
+            # TODO: 需要优化，后续只需要加载训练数据，验证集和测试集数据在验证和测试中加载
             sequences = {
                 'train': (train_seq['X'], train_seq['y']),
                 'val': (val_seq['X'], val_seq['y']),
@@ -80,6 +85,8 @@ def train_stock_model(args):
             data_results[ticker] = {
                 'sequences': sequences
             }
+            # 输出data_results维度信息
+            logger.info(f"data_results维度信息: {data_results[ticker]['sequences']['train'][0].shape}, {data_results[ticker]['sequences']['train'][1].shape}")
         else:
             # 完整处理股票数据
             result = processor.process_stock_pipeline(
@@ -106,6 +113,7 @@ def train_stock_model(args):
     
     # 创建数据加载器
     logger.info("创建数据加载器...")
+
     
     # 如果合并所有股票数据
     if args.merge_stocks and len(data_results) > 1:
@@ -174,7 +182,7 @@ def train_stock_model(args):
             num_layers=args.num_layers,
             num_heads=args.num_heads,
             prediction_type=args.prediction_type,
-            max_seq_len=args.sequence_length
+            max_seq_len=args.max_sequence_length
         )
         
         # 加载权重
@@ -193,7 +201,7 @@ def train_stock_model(args):
             moe_intermediate_size=args.moe_intermediate_size,
             num_experts=args.num_experts,
             num_experts_per_token=args.num_experts_per_token,
-            max_seq_len=args.sequence_length,
+            max_seq_len=args.max_sequence_length,
             attention_dropout=args.attention_dropout,
             hidden_dropout=args.hidden_dropout,
             use_mixed_attention=not args.disable_mixed_attention,
@@ -249,54 +257,8 @@ def train_stock_model(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="训练股票预测模型")
-    
-    # 数据相关参数
-    parser.add_argument("--raw_data_dir", type=str, default="../data/raw", help="原始数据目录")
-    parser.add_argument("--processed_data_dir", type=str, default="../data/processed", help="处理后数据目录")
-    parser.add_argument("--tickers", type=str, default="AAPL", help="股票代码，多个用逗号分隔")
-    parser.add_argument("--data_source", type=str, default="yahoo", help="数据源，如'yahoo'或'alphavantage'")
-    parser.add_argument("--load_processed", action="store_true", help="加载已处理的数据")
-    parser.add_argument("--merge_stocks", action="store_true", help="合并多只股票的数据")
-    parser.add_argument("--scaler_type", type=str, default="robust", help="缩放器类型，如'standard'、'minmax'或'robust'")
-    parser.add_argument("--test_size", type=float, default=0.1, help="测试集比例")
-    parser.add_argument("--val_size", type=float, default=0.1, help="验证集比例")
-    parser.add_argument("--sequence_length", type=int, default=60, help="序列长度")
-    parser.add_argument("--prediction_horizon", type=int, default=5, help="预测周期")
-    parser.add_argument("--feature_groups", type=str, default=None, help="特征组，多个用逗号分隔")
-    parser.add_argument("--batch_size", type=int, default=32, help="批量大小")
-    parser.add_argument("--num_workers", type=int, default=4, help="数据加载线程数")
-    
-    # 模型相关参数
-    parser.add_argument("--hidden_size", type=int, default=256, help="隐藏层维度")
-    parser.add_argument("--num_layers", type=int, default=4, help="Transformer层数")
-    parser.add_argument("--num_heads", type=int, default=4, help="注意力头数量")
-    parser.add_argument("--qk_nope_head_dim", type=int, default=32, help="不使用旋转位置编码的Q/K头维度")
-    parser.add_argument("--qk_rope_head_dim", type=int, default=32, help="使用旋转位置编码的Q/K头维度")
-    parser.add_argument("--v_head_dim", type=int, default=64, help="值向量的头维度")
-    parser.add_argument("--moe_intermediate_size", type=int, default=256, help="MoE中间层维度")
-    parser.add_argument("--num_experts", type=int, default=8, help="专家数量")
-    parser.add_argument("--num_experts_per_token", type=int, default=2, help="每个token使用的专家数量")
-    parser.add_argument("--attention_dropout", type=float, default=0.1, help="注意力Dropout比率")
-    parser.add_argument("--hidden_dropout", type=float, default=0.1, help="隐藏层Dropout比率")
-    parser.add_argument("--disable_mixed_attention", action="store_true", help="禁用混合潜在注意力")
-    parser.add_argument("--prediction_type", type=str, default="regression", help="预测类型，'regression'或'classification'")
-    
-    # 训练相关参数
-    parser.add_argument("--learning_rate", type=float, default=1e-4, help="学习率")
-    parser.add_argument("--weight_decay", type=float, default=0.01, help="权重衰减")
-    parser.add_argument("--clip_grad_norm", type=float, default=1.0, help="梯度裁剪范数")
-    parser.add_argument("--num_epochs", type=int, default=30, help="训练轮次")
-    parser.add_argument("--patience", type=int, default=5, help="早停耐心")
-    parser.add_argument("--save_dir", type=str, default="./models", help="模型保存目录")
-    parser.add_argument("--model_name", type=str, default="stock_transformer", help="模型名称")
-    parser.add_argument("--log_interval", type=int, default=10, help="日志记录间隔")
-    parser.add_argument("--device", type=str, default="cuda", help="训练设备")
-    parser.add_argument("--disable_mixed_precision", action="store_true", help="禁用混合精度训练")
-    parser.add_argument("--resume_from", type=str, default=None, help="从检查点恢复训练")
-    parser.add_argument("--seed", type=int, default=42, help="随机种子")
-    
-    args = parser.parse_args()
+    # 初始化模型参数
+    args = ModelArgs()
     
     # 训练模型
-    trainer, metrics = train_stock_model(args) 
+    trainer, metrics = train_model(args) 

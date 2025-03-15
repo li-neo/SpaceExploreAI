@@ -33,6 +33,9 @@ def get_logger(name: str = None, log_file: str = "app.log") -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     
+    # 禁止日志传播到父级logger，防止重复输出
+    logger.propagate = False
+    
     # 确保日志目录存在
     os.makedirs(LOG_DIR, exist_ok=True)
     

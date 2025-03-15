@@ -1,21 +1,18 @@
+import logging
 import os
 import argparse
 import torch
-import logging
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
 
-from ..model.transformer import StockTransformerModel, StockPricePredictor
-from ..data.data_processor import StockDataProcessor, StockDataset, create_dataloaders
-from .trainer import StockModelTrainer
+from model.transformer import StockTransformerModel, StockPricePredictor
+from data.data_processor import StockDataProcessor, StockDataset, create_dataloaders
+from trainer import StockModelTrainer
+from log.logger import get_logger
 
 # 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__, log_file="train_model.log")
 
 
 def train_stock_model(args):
@@ -28,7 +25,13 @@ def train_stock_model(args):
     logger.info("准备训练股票预测模型...")
     
     # 设置设备
-    device = torch.device(args.device if torch.cuda.is_available() and args.device == 'cuda' else 'cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+
     logger.info(f"使用设备: {device}")
     
     # 设置随机种子以便结果可重现
@@ -41,7 +44,7 @@ def train_stock_model(args):
     
     # 加载和处理数据
     logger.info("加载和处理数据...")
-    
+
     # 创建数据处理器
     processor = StockDataProcessor(
         raw_data_dir=args.raw_data_dir,

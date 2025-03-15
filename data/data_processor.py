@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
-from technical_indicators import TechnicalIndicatorProcessor
+from data.technical_indicators import TechnicalIndicatorProcessor
 from log.logger import get_logger
 import sys
 

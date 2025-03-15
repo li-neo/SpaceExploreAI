@@ -1,0 +1,28 @@
+{
+    "tickers": [
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "AMZN",
+        "META",
+        "TSLA",
+        "NVDA",
+        "BRK-B",
+        "JPM",
+        "V"
+    ],
+    "reference_ticker": "QQQ",
+    "timeframes": [
+        ["2m", "2d"],
+        ["1m", "1d"]
+    ],
+    "min_signal_strength": 8,
+    "warning_threshold": 11,
+    "divergence_sensitivity": 1.0,
+    "backtest_start": "2024-03-10",
+    "backtest_end": "2025-03-15",
+    "plot_charts": true,
+    "save_results": true,
+    "debug_mode": true,
+    "verbose": true
+} 

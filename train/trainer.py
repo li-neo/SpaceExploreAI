@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple, Optional, Union, Callable
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from ..model.transformer import StockTransformerModel, StockPricePredictor
+from model.transformer import StockTransformerModel, StockPricePredictor
 
 # 设置日志
 logging.basicConfig(

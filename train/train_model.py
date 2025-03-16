@@ -193,6 +193,7 @@ def train_model(args: ModelArgs):
         model = StockTransformerModel(
             vocab_size=feature_dim,
             hidden_size=args.hidden_size,
+            dtype=args.dtype,
             num_layers=args.num_layers,
             num_heads=args.num_heads,
             qk_nope_head_dim=args.qk_nope_head_dim,
@@ -201,10 +202,18 @@ def train_model(args: ModelArgs):
             moe_intermediate_size=args.moe_intermediate_size,
             num_experts=args.num_experts,
             num_experts_per_token=args.num_experts_per_token,
-            max_seq_len=args.max_sequence_length,
+            max_seq_length=args.max_sequence_length,
             attention_dropout=args.attention_dropout,
             hidden_dropout=args.hidden_dropout,
+            q_lora_rank=args.q_lora_rank,
+            kv_lora_rank=args.kv_lora_rank,
+            q_lora_rank=args.q_lora_rank,
+            kv_lora_rank=args.kv_lora_rank,
+            attention_scale_factor=args.attention_scale_factor,
             use_mixed_attention=not args.disable_mixed_attention,
+            max_batch_size=args.max_batch_size,
+            rope_scaling_factor=args.rope_scaling_factor,
+            rope_theta=args.rope_theta,
             prediction_type=args.prediction_type
         )
         logger.info("创建了新模型")

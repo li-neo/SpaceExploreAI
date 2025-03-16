@@ -39,22 +39,22 @@ class TransformerBlock(nn.Module):
     """
     def __init__(
         self, 
-        hidden_size: int,
-        num_heads: int,
-        qk_nope_head_dim: int = 128,
-        qk_rope_head_dim: int = 64,
-        v_head_dim: int = 128,
+        hidden_size: int = 256,
+        num_heads: int = 4,
+        qk_nope_head_dim: int = 32,
+        qk_rope_head_dim: int = 32,
+        v_head_dim: int = 64,
         moe_intermediate_size: int = 256,
         num_experts: int = 8,
         num_experts_per_token: int = 2,
-        attention_dropout: float = 0.0,
-        hidden_dropout: float = 0.0,
-        q_lora_rank: int = 0,
-        kv_lora_rank: int = 512,
+        attention_dropout: float = 0.1,
+        hidden_dropout: float = 0.1,
+        q_lora_rank: int = 16,
+        kv_lora_rank: int = 32,
         attention_scale_factor: float = 1.0,
         use_mixed_attention: bool = True,
         max_batch_size: int = 32,
-        max_seq_len: int = 4096
+        max_seq_len: int = 128
     ):
         """
         初始化Transformer编码器块
@@ -220,25 +220,27 @@ class StockTransformerModel(nn.Module):
     """
     def __init__(
         self,
-        vocab_size: int,  # 对于数值特征，这是特征维度
-        hidden_size: int = 768,
-        num_layers: int = 12,
-        num_heads: int = 12,
+        vocab_size: int = 64,  # 对于数值特征，这是特征维度
+        hidden_size: int = 256,
+        dtype: str = "float16",
+        num_layers: int = 4,
+        num_heads: int = 4,
         qk_nope_head_dim: int = 32,
         qk_rope_head_dim: int = 32,
         v_head_dim: int = 64,
         moe_intermediate_size: int = 256,
         num_experts: int = 8,
         num_experts_per_token: int = 2,
-        max_seq_len: int = 4096,
+        max_seq_len: int = 128,
         attention_dropout: float = 0.1,
         hidden_dropout: float = 0.1,
-        q_lora_rank: int = 0,
-        kv_lora_rank: int = 512,
+        q_lora_rank: int = 16,
+        kv_lora_rank: int = 32,  
         attention_scale_factor: float = 1.0,
         use_mixed_attention: bool = True,
         max_batch_size: int = 32,
-        scaling_factor: float = 1.0,
+        rope_scaling_factor: float = 1.0,
+        rope_theta: float = 10000.0,
         prediction_type: str = "regression"
     ):
         """
@@ -263,7 +265,8 @@ class StockTransformerModel(nn.Module):
             attention_scale_factor: 注意力缩放因子
             use_mixed_attention: 是否使用混合潜在注意力
             max_batch_size: 最大批量大小
-            scaling_factor: 位置编码缩放因子
+            rope_scaling_factor: 位置编码缩放因子
+            rope_theta: 位置编码base
             prediction_type: 预测类型，"regression"或"classification"
         """
         super().__init__()
@@ -275,17 +278,22 @@ class StockTransformerModel(nn.Module):
         self.max_seq_len = max_seq_len
         self.prediction_type = prediction_type
         
-        # 输入投影层
+        # 初始化输入投影层（将64维特征投影到256维）
         self.input_projection = nn.Linear(vocab_size, hidden_size)
         
-        # 位置编码
+        # 初始化RopE位置编码，位置编码维度信息： rotary_emb -> Tensor[max_seq_len, dim]
         self.rotary_emb = RotaryEmbedding(
-            dim=qk_rope_head_dim * 2,  # RoPE使用的维度需要是偶数
+            # RoPE使用的维度需要是2的倍数，因为RoPE的实现方式需要将数据映射到复数空间
+            dim=qk_rope_head_dim * 2,
+            # 最大序列长度  
             max_seq_len=max_seq_len,
-            scaling_factor=scaling_factor
+            # 位置编码base
+            theta=rope_theta,
+            # 位置编码缩放因子
+            scaling_factor=rope_scaling_factor
         )
         
-        # Transformer层
+        # Transformer层 (num_layers=4)
         self.layers = nn.ModuleList([
             TransformerBlock(
                 hidden_size=hidden_size,

@@ -83,15 +83,28 @@ class ModelArgs():
     moe_intermediate_size: int = 256  # MoE中间层维度,混合专家模型中间层的维度
     num_experts: int = 8  # 专家数量,混合专家模型中的专家数量
     num_experts_per_token: int = 2  # 每个token使用的专家数量,每个输入会激活的专家数量
+
+    # mla
+
+    # moe
+    
+
+    # 混合注意力
     attention_dropout: float = 0.1  # 注意力Dropout比率,注意力机制中的丢弃率
     hidden_dropout: float = 0.1  # 隐藏层Dropout比率,前馈网络中的丢弃率
+    attention_scale_factor: float = 1.0  # 注意力缩放因子,用于调整注意力机制的权重
     disable_mixed_attention: bool = False  # 是否禁用混合潜在注意力,False表示使用混合注意力机制
-    prediction_type: str = "regression"  # 预测类型,"regression"(回归)或"classification"(分类)
+   
+
+    # 低秩适应
+    q_lora_rank: int = 16  # 低秩适应的Q矩阵的秩
+    kv_lora_rank: int = 32  # 低秩适应的K/V矩阵的秩
     
     # 位置编码相关参数
+    # TODO:建议改成1000，因为我们vocab_size=64
     rope_theta: float = 10000.0  # RoPE的基频参数,控制旋转位置编码的频率分布
     rope_scaling_factor: float = 1.0  # RoPE缩放因子,用于调整位置编码的尺度
-    
+    rope_scaling_type: str = "linear"  # RoPE缩放类型,可选"linear"(线性)或"ntk"(NTK)
     # 数据类型和精度
     dtype: Literal["float32", "float16", "bfloat16"] = "float16"  # 模型权重的数据类型,float32为标准精度,float16和bfloat16为低精度
     
@@ -108,3 +121,5 @@ class ModelArgs():
     disable_mixed_precision: bool = True  # 是否禁用混合精度训练,True表示禁用,在Mac上通常需要禁用
     resume_from: str = None  # 从检查点恢复训练,指定检查点文件路径
     seed: int = 42  # 随机种子,确保实验可重复性的随机数种子
+
+    prediction_type: str = "regression"  # 预测类型,"regression"(回归)或"classification"(分类)

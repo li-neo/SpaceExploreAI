@@ -85,7 +85,7 @@ class RotaryEmbedding(nn.Module):
     """
     def __init__(self, 
                  dim: int, 
-                 max_seq_len: int = 4096, 
+                 max_seq_len: int = 128, 
                  theta: float = 10000.0,
                  scaling_factor: float = 1.0,
                  scaling_type: str = "linear"):

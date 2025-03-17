@@ -77,9 +77,6 @@ class ModelArgs():
     hidden_size: int = 256  # 隐藏层维度,模型内部表示的维度大小
     num_layers: int = 4  # Transformer层数,堆叠的Transformer编码器层数
     num_heads: int = 4  # 注意力头数量,多头注意力机制中的头数
-    qk_nope_head_dim: int = 32  # 不使用旋转位置编码的Q/K头维度,每个注意力头中查询和键向量的维度
-    qk_rope_head_dim: int = 32  # 使用旋转位置编码的Q/K头维度,使用RoPE的注意力头中查询和键向量的维度
-    v_head_dim: int = 64  # 值向量的头维度,每个注意力头中值向量的维度
     moe_intermediate_size: int = 256  # MoE中间层维度,混合专家模型中间层的维度
     num_experts: int = 8  # 专家数量,混合专家模型中的专家数量
     num_experts_per_token: int = 2  # 每个token使用的专家数量,每个输入会激活的专家数量
@@ -97,8 +94,12 @@ class ModelArgs():
    
 
     # 低秩适应
-    q_lora_rank: int = 16  # 低秩适应的Q矩阵的秩
-    kv_lora_rank: int = 32  # 低秩适应的K/V矩阵的秩
+    q_lora_rank: int = 0  # 低秩适应的Q矩阵的秩, 0表示不使用低秩适应
+    kv_lora_rank: int = 32  # 低秩适应的K/V矩阵的秩,建议设置为hidden_size的 1/4 - 1/8
+    # qk_head_dim = qk_nope_head_dim + qk_rope_head_dim 
+    qk_nope_head_dim: int = 32  # 不使用旋转位置编码的Q/K头维度,每个注意力头中查询和键向量的维度
+    qk_rope_head_dim: int = 32  # 使用旋转位置编码的Q/K头维度,使用RoPE的注意力头中查询和键向量的维度
+    v_head_dim: int = 64  # 值向量的头维度,每个注意力头中值向量的维度
     
     # 位置编码相关参数
     # TODO:建议改成1000，因为我们vocab_size=64

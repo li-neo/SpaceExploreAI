@@ -378,13 +378,17 @@ class StockTransformerModel(nn.Module):
         """
         batch_size, seq_len, _ = inputs.shape
         
-        # 如果没有提供位置ID，创建默认位置ID
-        if position_ids is None:
-            position_ids = torch.arange(seq_len, dtype=torch.long, device=inputs.device)
-            position_ids = position_ids.unsqueeze(0).expand(batch_size, -1)
-        
         # 生成旋转位置编码
         freqs_cis = self.rotary_emb.freqs_buffer[:seq_len]
+        max_len = freqs_cis.size(0)
+        
+        # 如果没有提供位置ID，创建默认位置ID
+        if position_ids is None:
+            position_ids = torch.arange(seq_len, dtype=torch.long, device=inputs.device) % max_len
+            position_ids = position_ids.unsqueeze(0).expand(batch_size, -1)
+        else:
+            # 确保提供的position_ids不超过最大长度
+            position_ids = position_ids % max_len
         
         # 输入投影到隐藏维度
         hidden_states = self.input_projection(inputs)

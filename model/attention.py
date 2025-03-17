@@ -19,12 +19,12 @@ class MultiLatentAttention(nn.Module):
     def __init__(self, 
                  hidden_size: int, 
                  num_heads: int,
-                 qk_nope_head_dim: int = 128,
-                 qk_rope_head_dim: int = 64,
+                 qk_nope_head_dim: int = 32,
+                 qk_rope_head_dim: int = 32,
                  v_head_dim: int = 128,
-                 dropout: float = 0.0,
+                 dropout: float = 0.1,
                  q_lora_rank: int = 0,
-                 kv_lora_rank: int = 512,
+                 kv_lora_rank: int = 32,
                  attention_scale_factor: float = 1.0):
         """
         初始化多头潜在注意力模块
@@ -36,7 +36,7 @@ class MultiLatentAttention(nn.Module):
             qk_rope_head_dim: 使用旋转位置编码的Q/K头维度
             v_head_dim: 值向量的头维度
             dropout: Dropout比率
-            q_lora_rank: Q的低秩适应维度，0表示不使用低秩适应
+            q_lora_rank: Q的低秩适应维度, 0表示不使用低秩适应
             kv_lora_rank: K和V的低秩适应维度
             attention_scale_factor: 注意力缩放因子
         """
@@ -59,6 +59,7 @@ class MultiLatentAttention(nn.Module):
         if self.q_lora_rank == 0:
             # 直接使用全尺寸投影
             self.q_proj = nn.Linear(hidden_size, num_heads * self.qk_head_dim, bias=False)
+            logger.info(f"Q投影层全尺寸形状self.q_proj.weight.shape: {self.q_proj.weight.shape}")
         else:
             # 使用低秩适应
             self.q_proj_a = nn.Linear(hidden_size, self.q_lora_rank, bias=False)
@@ -66,9 +67,15 @@ class MultiLatentAttention(nn.Module):
             self.q_proj_b = nn.Linear(self.q_lora_rank, num_heads * self.qk_head_dim, bias=False)
         
         # KV低秩投影层
+        # 输入维度：hidden_size，隐藏维度
+        # 输出维度：低秩维度 + 旋转位置编码维度
         self.kv_proj_a = nn.Linear(hidden_size, self.kv_lora_rank + self.qk_rope_head_dim, bias=False)
         self.kv_norm = nn.LayerNorm(self.kv_lora_rank)
         # KV的第二个投影
+        # 输入维度：低秩维度
+        # 输出维度：多头总维度
+        # 分离K和V
+        # 运行时需要分离 k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
         self.kv_proj_b = nn.Linear(self.kv_lora_rank, num_heads * (self.qk_nope_head_dim + self.v_head_dim), bias=False)
         
         # 输出投影层
@@ -82,15 +89,29 @@ class MultiLatentAttention(nn.Module):
     
     def _init_weights(self):
         """初始化模型权重"""
+        """
+        Xavier初始化：这是一种特别为神经网络设计的权重初始化方法，旨在保持每一层输入和输出的方差大致相等，有助于防止梯度消失或爆炸。
+        uniform_：表示使用均匀分布进行初始化。
+        self.out_proj.weight：这是输出投影层的权重矩阵，将多头注意力的输出映射回原始的隐藏维度。
+        gain=1 / math.sqrt(2)：这是一个缩放因子，用于调整初始化的范围。这里使用 1/√2 作为增益值，这会使权重的方差更小，有助于稳定训练，特别是在残差连接的网络中。
+        """
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1 / math.sqrt(2))
         
+        """
+        self.q_lora_rank == 0：如果不使用低秩适应，直接初始化完整的查询投影矩阵。
+        else分支：如果使用低秩适应，则需要初始化两个矩阵：
+            self.q_proj_a.weight：第一个低秩矩阵，将输入映射到低维空间。
+            self.q_proj_b.weight：第二个低秩矩阵，将低维表示映射回原始维度。
+        """
         if self.q_lora_rank == 0:
             nn.init.xavier_uniform_(self.q_proj.weight)
         else:
             nn.init.xavier_uniform_(self.q_proj_a.weight)
             nn.init.xavier_uniform_(self.q_proj_b.weight)
         
+        # self.kv_proj_a.weight：键值的第一个投影矩阵，将输入映射到低维空间和旋转位置编码空间。
         nn.init.xavier_uniform_(self.kv_proj_a.weight)
+        # self.kv_proj_b.weight：键值的第二个投影矩阵，将低维表示映射回原始维度。
         nn.init.xavier_uniform_(self.kv_proj_b.weight)
     
     def forward(self, 
@@ -106,9 +127,9 @@ class MultiLatentAttention(nn.Module):
         
         参数:
             hidden_states: 输入张量，形状为 [batch_size, seq_len, hidden_size]
-            freqs_cis: 旋转位置编码的频率张量
+            freqs_cis: 旋转位置编码的频率张量，形状为 [max_seq_len, qk_rope_head_dim]
             attention_mask: 注意力掩码
-            position_ids: 位置ID
+            position_ids: 位置ID，形状为 [batch_size, seq_len]，如果为None则自动生成
             past_key_value: 用于缓存的过去KV状态
             output_attentions: 是否输出注意力权重
             use_cache: 是否使用KV缓存
@@ -118,26 +139,44 @@ class MultiLatentAttention(nn.Module):
         """
         batch_size, seq_len, _ = hidden_states.size()
         
+        # 处理位置ID，确保不超过freqs_cis的最大长度
+        if position_ids is None:
+            # 如果没有提供position_ids，则自动生成
+            # 使用模运算确保所有位置ID都在有效范围内
+            max_len = freqs_cis.size(0)
+            position_ids = torch.arange(seq_len, device=hidden_states.device) % max_len
+            position_ids = position_ids.unsqueeze(0).expand(batch_size, -1)
+        else:
+            # 如果提供了position_ids，确保不超过最大长度
+            max_len = freqs_cis.size(0)
+            position_ids = position_ids % max_len
+        
         # 计算Q投影
         if self.q_lora_rank == 0:
             q = self.q_proj(hidden_states)
         else:
+            #[batch_size,seq_len,hidden_size] -> [batch_size,seq_len,q_lora_rank] -> [batch_size,seq_len,num_heads*qk_head_dim]
             q = self.q_proj_b(self.q_norm(self.q_proj_a(hidden_states)))
         
-        # 重塑Q为多头形式 [batch_size, seq_len, num_heads, qk_head_dim]
+        # 重塑Q为多头形式 [batch_size,seq_len,num_heads*qk_head_dim] -> [batch_size, seq_len, num_heads, qk_head_dim]
         q = q.view(batch_size, seq_len, self.num_heads, self.qk_head_dim)
         
         # 分离不使用位置编码和使用位置编码的部分
+        # qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
         q_nope, q_rope = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
-        
-        # 应用旋转位置编码到需要的部分
+        # q_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
+
+
+        # q_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
+        # freqs_cis: [max_seq_len,qk_rope_head_dim]
+        # 应用旋转位置编码到需要的部分，使用安全的position_ids
         q_rope = apply_rotary_emb(q_rope, freqs_cis, position_ids)
         
         # 计算KV投影
         kv = self.kv_proj_a(hidden_states)
         kv, k_rope = torch.split(kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
         
-        # 应用旋转位置编码到k_rope
+        # 应用旋转位置编码到k_rope，使用安全的position_ids
         k_rope = apply_rotary_emb(k_rope.unsqueeze(2), freqs_cis, position_ids)
         
         # 计算KV的第二次投影
@@ -668,7 +707,8 @@ if __name__ == "__main__":
     
     # 测试参数
     batch_size = 16
-    seq_len = 128
+    seq_len = 32  # 实际序列长度
+    max_seq_len = 128  # 最大序列长度
     hidden_size = 256
     num_heads = 4
     qk_nope_head_dim = 32
@@ -677,13 +717,33 @@ if __name__ == "__main__":
     
     # 创建测试输入
     hidden_states = torch.randn(batch_size, seq_len, hidden_size)
+    logger.info(f"隐藏状态形状hidden_states.shape: {hidden_states.shape}")
     
-    # 预计算频率 - 修复：确保频率张量的维度与序列长度匹配
-    max_seq_len = 128  # 设置足够大的最大序列长度
+    # 预计算频率：确保频率张量的维度与最大序列长度匹配
     freqs_cis = precompute_freqs_cis(qk_rope_head_dim, max_seq_len)
+    logger.info(f"预计算位置编码形状freqs_cis.shape: {freqs_cis.shape}")
     
-    # 创建位置ID
-    position_ids = torch.arange(seq_len, dtype=torch.long).unsqueeze(0).expand(batch_size, -1)
+    # 创建自定义位置ID - 方法1：使用模运算确保不超过max_seq_len
+    position_ids_1 = torch.arange(seq_len, dtype=torch.long) % max_seq_len
+    position_ids_1 = position_ids_1.unsqueeze(0).expand(batch_size, -1)
+    logger.info(f"位置ID方法1形状: {position_ids_1.shape}, 最大值: {position_ids_1.max().item()}")
+    
+    # 创建自定义位置ID - 方法2：使用循环位置编码
+    position_ids_2 = torch.arange(seq_len, dtype=torch.long) % max_seq_len
+    # 可以添加偏移量，例如从特定位置开始
+    offset = 10
+    position_ids_2 = (position_ids_2 + offset) % max_seq_len
+    position_ids_2 = position_ids_2.unsqueeze(0).expand(batch_size, -1)
+    logger.info(f"位置ID方法2形状: {position_ids_2.shape}, 最大值: {position_ids_2.max().item()}")
+    
+    # 创建自定义位置ID - 方法3：处理超长序列
+    # 假设我们有一个非常长的序列，长度为1000
+    long_seq_len = 1000
+    # 创建一个映射函数，将长序列位置映射到有效范围
+    long_position_ids = torch.arange(long_seq_len, dtype=torch.long) % max_seq_len
+    # 只取前seq_len个用于测试
+    position_ids_3 = long_position_ids[:seq_len].unsqueeze(0).expand(batch_size, -1)
+    logger.info(f"位置ID方法3形状: {position_ids_3.shape}, 最大值: {position_ids_3.max().item()}")
     
     # 测试多头潜在注意力
     logger.info(f"测试多头潜在注意力...")
@@ -694,15 +754,31 @@ if __name__ == "__main__":
         qk_rope_head_dim=qk_rope_head_dim,
         v_head_dim=v_head_dim
     )
-    output = mla(hidden_states, freqs_cis, position_ids=position_ids)[0]
+    
+    # 测试不同的位置ID方案
+    logger.info(f"测试位置ID方法1...")
+    output1 = mla(hidden_states, freqs_cis, position_ids=position_ids_1)[0]
+    
+    logger.info(f"测试位置ID方法2...")
+    output2 = mla(hidden_states, freqs_cis, position_ids=position_ids_2)[0]
+    
+    logger.info(f"测试位置ID方法3...")
+    output3 = mla(hidden_states, freqs_cis, position_ids=position_ids_3)[0]
+    
+    logger.info(f"测试不提供位置ID（自动生成）...")
+    output4 = mla(hidden_states, freqs_cis, position_ids=None)[0]
+    
     logger.info(f"输入形状: {hidden_states.shape}")
-    logger.info(f"输出形状: {output.shape}")
+    logger.info(f"输出形状1: {output1.shape}")
+    logger.info(f"输出形状2: {output2.shape}")
+    logger.info(f"输出形状3: {output3.shape}")
+    logger.info(f"输出形状4: {output4.shape}")
     
     # 测试混合潜在注意力 - 修复：确保批量大小不超过最大批量大小
     logger.info(f"测试混合潜在注意力...")
     test_batch_size = 4  # 确保不超过max_batch_size
     test_hidden_states = hidden_states[:test_batch_size]
-    test_position_ids = position_ids[:test_batch_size]
+    test_position_ids = position_ids_1[:test_batch_size]
     
     # 测试标准注意力
     logger.info(f"测试标准注意力...")
@@ -753,7 +829,10 @@ if __name__ == "__main__":
     logger.info(f"吸收式注意力输出形状: {absorb_output.shape}")
     
     # 检查输出尺寸是否正确
-    assert output.shape == hidden_states.shape
+    assert output1.shape == hidden_states.shape
+    assert output2.shape == hidden_states.shape
+    assert output3.shape == hidden_states.shape
+    assert output4.shape == hidden_states.shape
     assert standard_output.shape == test_hidden_states.shape
     assert gqa_output.shape == test_hidden_states.shape
     assert absorb_output.shape == test_hidden_states.shape

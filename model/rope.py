@@ -9,25 +9,29 @@ def precompute_freqs_cis(dim: int, max_seq_len: int, theta: float = 10000.0, sca
     预计算旋转位置编码的频率复数形式
     
     参数:
-        dim: 隐藏维度
+        dim: 头维度，必须是偶数
         max_seq_len: 最大序列长度
         theta: 旋转角度基值
         scaling_factor: 扩展序列长度的缩放因子
 
     返回:
-        复数形式的频率张量
+        复数形式的频率张量，形状为 [max_seq_len, dim/2]
     """
+    # 确保维度是偶数
+    if dim % 2 != 0:
+        raise ValueError(f"维度 ({dim}) 必须是偶数")
+    
     # 如果使用了缩放因子，则对theta进行调整
     theta = theta * (1.0 / scaling_factor) ** (dim / (dim - 2))
     
-    # 计算基本频率
+    # 计算基本频率，只需要dim/2个频率
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
     
     # 生成位置序列
     t = torch.arange(max_seq_len, dtype=torch.float)
     
     # 计算频率外积
-    freqs = torch.outer(t, freqs)
+    freqs = torch.outer(t, freqs)  # [max_seq_len, dim/2]
     
     # 使用欧拉公式将频率转换为复数形式: e^(i*θ) = cos(θ) + i*sin(θ)
     freqs_cis = torch.polar(torch.ones_like(freqs), freqs)
@@ -55,22 +59,40 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor, position_ids=None
         batch_size, seq_len, n_heads, head_dim = x.shape
     else:
         batch_size, seq_len, head_dim = x.shape
+        n_heads = 1
+    
+    # 确保head_dim是偶数
+    if head_dim % 2 != 0:
+        raise ValueError(f"头维度 ({head_dim}) 必须是偶数")
+    
+    # 确保freqs_cis的维度与head_dim/2匹配
+    if freqs_cis.shape[-1] != head_dim // 2:
+        raise ValueError(f"频率张量的最后一个维度 ({freqs_cis.shape[-1]}) 必须等于头维度的一半 ({head_dim // 2})")
     
     # 如果提供了位置ID，则按照位置ID获取对应的频率
     if position_ids is not None:
-        freqs_cis = freqs_cis[position_ids]
+        # 确保position_ids的形状正确
+        if position_ids.shape[0] != batch_size or position_ids.shape[1] != seq_len:
+            raise ValueError(f"位置ID的形状 {position_ids.shape} 必须匹配批量大小和序列长度 ({batch_size}, {seq_len})")
+        
+        # 获取对应位置的频率
+        freqs_cis = freqs_cis[position_ids]  # [batch_size, seq_len, head_dim/2]
     else:
         # 否则取序列长度的频率
-        freqs_cis = freqs_cis[:seq_len]
+        if seq_len > freqs_cis.shape[0]:
+            raise ValueError(f"序列长度 ({seq_len}) 超过了预计算的频率张量长度 ({freqs_cis.shape[0]})")
+        freqs_cis = freqs_cis[:seq_len]  # [seq_len, head_dim/2]
+        # 扩展到批量维度
+        freqs_cis = freqs_cis.unsqueeze(0).expand(batch_size, seq_len, head_dim // 2)  # [batch_size, seq_len, head_dim/2]
     
     # 将输入张量视为复数
     x_complex = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
     
     # 调整频率张量的形状以便于广播
     if len(x.shape) == 4:
-        freqs_cis = freqs_cis.unsqueeze(0).unsqueeze(2).expand(batch_size, -1, n_heads, -1)
-    else:
-        freqs_cis = freqs_cis.unsqueeze(0).expand(batch_size, -1, -1)
+        # 对于多头情况，需要在头维度上扩展
+        # 从 [batch_size, seq_len, head_dim/2] 到 [batch_size, seq_len, n_heads, head_dim/2]
+        freqs_cis = freqs_cis.unsqueeze(2).expand(batch_size, seq_len, n_heads, head_dim // 2)
     
     # 复数乘法实现旋转
     x_rotated = torch.view_as_real(x_complex * freqs_cis).flatten(-2)
@@ -93,7 +115,7 @@ class RotaryEmbedding(nn.Module):
         初始化旋转位置编码模块
         
         参数:
-            dim: 隐藏维度
+            dim: 头维度，必须是偶数
             max_seq_len: 最大序列长度
             theta: 旋转角度基值
             scaling_factor: 扩展序列长度的缩放因子
@@ -121,7 +143,7 @@ class RotaryEmbedding(nn.Module):
         
         参数:
             x: 输入张量 [batch_size, seq_len, n_heads, head_dim] 或 [batch_size, seq_len, head_dim]
-            position_ids: 位置ID
+            position_ids: 位置ID，形状为 [batch_size, seq_len]
 
         返回:
             应用了旋转位置编码的张量

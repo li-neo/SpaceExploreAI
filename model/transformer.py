@@ -4,9 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple, Union
 
-from .rope import RotaryEmbedding, precompute_freqs_cis
-from .attention import MultiLatentAttention, MixedLatentAttention
-from .moe import MixtureOfExperts, MLP
+from model.rope import RotaryEmbedding, precompute_freqs_cis
+from model.attention import MultiLatentAttention, MixedLatentAttention
+from model.moe import MixtureOfExperts, MLP
+from log.logger import get_logger
+
+logger = get_logger(__file__, "transformer.log")
 
 
 class RMSNorm(nn.Module):
@@ -54,7 +57,8 @@ class TransformerBlock(nn.Module):
         attention_scale_factor: float = 1.0,
         use_mixed_attention: bool = True,
         max_batch_size: int = 32,
-        max_seq_len: int = 128
+        max_seq_len: int = 128,
+        dtype: str = "float16"
     ):
         """
         初始化Transformer编码器块
@@ -85,6 +89,8 @@ class TransformerBlock(nn.Module):
         
         # 前注意力层归一化
         self.pre_attn_norm = RMSNorm(hidden_size)
+        # 打印pre_attn_norm的权重shape
+        logger.info(f"3. pre_attn_norm的权重shape: {self.pre_attn_norm.weight.shape}")
         
         # 注意力机制
         if use_mixed_attention:
@@ -99,7 +105,8 @@ class TransformerBlock(nn.Module):
                 kv_lora_rank=kv_lora_rank,
                 attention_scale_factor=attention_scale_factor,
                 max_batch_size=max_batch_size,
-                max_seq_len=max_seq_len
+                max_seq_len=max_seq_len,
+                dtype=dtype
             )
         else:
             self.attention = MultiLatentAttention(
@@ -113,9 +120,13 @@ class TransformerBlock(nn.Module):
                 kv_lora_rank=kv_lora_rank,
                 attention_scale_factor=attention_scale_factor
             )
+        # 打印attention的权重shape
+        logger.info(f"4. attention的权重shape: {self.attention.weight.shape}")
         
         # 前MoE层归一化
         self.pre_moe_norm = RMSNorm(hidden_size)
+        # 打印pre_moe_norm的权重shape
+        logger.info(f"5. pre_moe_norm的权重shape: {self.pre_moe_norm.weight.shape}")
         
         # MoE前馈网络
         self.moe = MixtureOfExperts(
@@ -241,7 +252,7 @@ class StockTransformerModel(nn.Module):
         max_batch_size: int = 32,
         rope_scaling_factor: float = 1.0,
         rope_theta: float = 10000.0,
-        prediction_type: str = "regression"
+        prediction_type: str = "regression",
     ):
         """
         初始化股票价格预测的Transformer模型
@@ -280,11 +291,12 @@ class StockTransformerModel(nn.Module):
         
         # 初始化输入投影层（将64维特征投影到256维）
         self.input_projection = nn.Linear(vocab_size, hidden_size)
+        logger.info(f"1. input_projection的权重shape: {self.input_projection.weight.shape}")
         
         # 初始化RopE位置编码，位置编码维度信息： rotary_emb -> Tensor[max_seq_len, dim]
         self.rotary_emb = RotaryEmbedding(
-            # RoPE使用的维度需要是2的倍数，因为RoPE的实现方式需要将数据映射到复数空间
-            dim=qk_rope_head_dim * 2,
+            # RoPE使用的维度需要是偶数，因为RoPE的实现方式需要将数据映射到复数空间
+            dim=qk_rope_head_dim,
             # 最大序列长度  
             max_seq_len=max_seq_len,
             # 位置编码base
@@ -292,7 +304,9 @@ class StockTransformerModel(nn.Module):
             # 位置编码缩放因子
             scaling_factor=rope_scaling_factor
         )
-        
+        # 打印rotary_emb的权重shape
+        logger.info(f"2. rotary_emb的权重shape: {self.rotary_emb.freqs_buffer.shape}")
+
         # Transformer层 (num_layers=4)
         self.layers = nn.ModuleList([
             TransformerBlock(
@@ -311,7 +325,8 @@ class StockTransformerModel(nn.Module):
                 attention_scale_factor=attention_scale_factor,
                 use_mixed_attention=use_mixed_attention,
                 max_batch_size=max_batch_size,
-                max_seq_len=max_seq_len
+                max_seq_len=max_seq_len,
+                dtype=dtype
             ) for _ in range(num_layers)
         ])
         
@@ -551,9 +566,9 @@ class StockPricePredictor:
 # 测试代码
 if __name__ == "__main__":
     # 测试参数
-    batch_size = 2
-    seq_len = 16
-    feature_dim = 50  # 股票数据的特征维度
+    batch_size = 16
+    seq_len = 128
+    feature_dim = 64  # 股票数据的特征维度
     hidden_size = 256
     num_layers = 4
     num_heads = 4
@@ -562,7 +577,7 @@ if __name__ == "__main__":
     inputs = torch.randn(batch_size, seq_len, feature_dim)
     
     # 测试Transformer模型
-    print("测试股票Transformer模型...")
+    logger.info(f"测试股票Transformer模型...")
     model = StockTransformerModel(
         vocab_size=feature_dim,
         hidden_size=hidden_size,
@@ -574,12 +589,12 @@ if __name__ == "__main__":
     
     outputs = model(inputs)
     
-    print(f"输入形状: {inputs.shape}")
-    print(f"预测形状: {outputs['prediction'].shape}")
-    print(f"最后隐藏状态形状: {outputs['last_hidden_state'].shape}")
+    logger.info(f"输入形状: {inputs.shape}")
+    logger.info(f"预测形状: {outputs['prediction'].shape}")
+    logger.info(f"最后隐藏状态形状: {outputs['last_hidden_state'].shape}")
     
     # 测试预测器
-    print("\n测试股票价格预测器...")
+    logger.info(f"测试股票价格预测器...")
     predictor = StockPricePredictor(
         feature_dim=feature_dim,
         hidden_size=hidden_size,
@@ -592,7 +607,7 @@ if __name__ == "__main__":
     
     predictions = predictor.predict(inputs)
     
-    print(f"输入形状: {inputs.shape}")
-    print(f"预测形状: {predictions.shape}")
+    logger.info(f"输入形状: {inputs.shape}")
+    logger.info(f"预测形状: {predictions.shape}")
     
-    print("\n所有测试通过！") 
+    logger.info(f"所有测试通过！") 

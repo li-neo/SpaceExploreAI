@@ -212,12 +212,18 @@ class MultiLatentAttention(nn.Module):
         # 合并K的两部分
         # k_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
         # k_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
+        # expand(-1, -1, self.num_heads, -1): 扩展维度，确保k_rope的维度与k_nope的维度一致
+        # k: [batch_size,seq_len,num_heads,qk_nope_head_dim + qk_rope_head_dim]; qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
         k = torch.cat([k_nope, k_rope.expand(-1, -1, self.num_heads, -1)], dim=-1)
         
         # 处理过去的键值对（用于解码器）
         if past_key_value is not None:
             past_key, past_value = past_key_value
+            # past_key: [batch_size,seq_len,num_heads,qk_nope_head_dim]
+            # past_value: [batch_size,seq_len,num_heads,v_head_dim]
+            # k: [batch_size, current_seq_len + past_seq_len, num_heads, qk_head_dim]
             k = torch.cat([past_key, k], dim=1)
+            # v: [batch_size, current_seq_len + past_seq_len, num_heads, v_head_dim]
             v = torch.cat([past_value, v], dim=1)
         
         # 准备当前的键值对用于缓存
@@ -227,14 +233,22 @@ class MultiLatentAttention(nn.Module):
             current_key_value = None
         
         # 重新合并Q的两部分
+        #q_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
+        #q_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
+        #q: [batch_size,seq_len,num_heads,qk_head_dim]; qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
         q = torch.cat([q_nope, q_rope], dim=-1)
         
         # 计算注意力分数
-        # [batch_size, num_heads, seq_len, seq_len]
+        # q: [batch_size,seq_len,num_heads,qk_head_dim]
+        # k: [batch_size,current_seq_len + past_seq_len,num_heads,qk_head_dim] 
+        # attention_scores: [batch_size, q_seq_len,k_seq_len,num_heads]
+        # btsh为什么d消失了？ 是因为沿着d，head_dim维度进行求和并点积操作，对于每个head，分别计算q和k的点积，不夸head进行求和
         attention_scores = torch.einsum("bthd,bshd->btsh", q, k) * self.softmax_scale
         
         # 应用注意力掩码
         if attention_mask is not None:
+            # attention_mask: [batch_size,1,1,seq_len]
+            # attention_scores: [batch_size,seq_len,num_heads,seq_len]
             attention_scores = attention_scores + attention_mask
         
         # 应用softmax获取注意力权重

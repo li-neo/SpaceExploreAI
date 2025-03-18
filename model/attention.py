@@ -248,20 +248,30 @@ class MultiLatentAttention(nn.Module):
         # 应用注意力掩码
         if attention_mask is not None:
             # attention_mask: [batch_size,1,1,seq_len]
-            # attention_scores: [batch_size,seq_len,num_heads,seq_len]
+            # attention_scores: [batch_size,q_seq_len,k_seq_len,num_heads]
             attention_scores = attention_scores + attention_mask
         
         # 应用softmax获取注意力权重
+        # attention_scores: [batch_size,q_seq_len,k_seq_len,num_heads]
+        # attention_weights: softmax[batch_size,q_seq_len,k_seq_len,num_heads]
         attention_weights = F.softmax(attention_scores, dim=-1, dtype=torch.float32).type_as(q)
         
         # 应用dropout
+        # attention_weights: [batch_size,q_seq_len,k_seq_len,num_heads]
         attention_weights = self.attn_dropout(attention_weights)
         
         # 计算注意力输出 [batch_size, seq_len, num_heads, v_head_dim]
+        # attention_weights: [batch_size,q_seq_len,k_seq_len,num_heads]
+        # v: [batch_size,seq_len,num_heads,v_head_dim]
+        # attn_output: [batch_size,q_seq_len,num_heads,v_head_dim]
         attn_output = torch.einsum("btsh,bshd->bthd", attention_weights, v)
         
         # 重塑输出并应用输出投影
+        # attn_output: [batch_size,q_seq_len,num_heads,v_head_dim]
+        # ->
+        # attn_output: [batch_size,seq_len,num_heads * v_head_dim]
         attn_output = attn_output.reshape(batch_size, seq_len, self.num_heads * self.v_head_dim)
+        # attn_output: [batch_size,seq_len,hidden_size]
         attn_output = self.out_proj(attn_output)
         
         # 处理返回值

@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple, Union
 
-from model.rope import RotaryEmbedding, precompute_freqs_cis
+from model.rope import RotaryEmbedding, precompute_freqs_cis, NTKScaledRotaryEmbedding
 from model.attention import MultiLatentAttention, MixedLatentAttention
 from model.moe import MixtureOfExperts, MLP
 from log.logger import get_logger
@@ -55,7 +55,7 @@ class TransformerBlock(nn.Module):
         q_lora_rank: int = 16,
         kv_lora_rank: int = 32,
         attention_scale_factor: float = 1.0,
-        use_mixed_attention: bool = True,
+        attention_type: str = "mixed",
         max_batch_size: int = 32,
         max_seq_len: int = 128,
         dtype: str = "float16"
@@ -77,7 +77,7 @@ class TransformerBlock(nn.Module):
             q_lora_rank: Q的低秩适应维度
             kv_lora_rank: K和V的低秩适应维度
             attention_scale_factor: 注意力缩放因子
-            use_mixed_attention: 是否使用混合潜在注意力
+            attention_type: 注意力类型,可选mixed,stardard,gqa
             max_batch_size: 最大批量大小
             max_seq_len: 最大序列长度
         """
@@ -85,15 +85,14 @@ class TransformerBlock(nn.Module):
         
         # 保存参数
         self.hidden_size = hidden_size
-        self.use_mixed_attention = use_mixed_attention
+        self.attention_type = attention_type
         
         # 前注意力层归一化
-        self.pre_attn_norm = RMSNorm(hidden_size)
+        self.pre_attn_norm  = RMSNorm(hidden_size)
         # 打印pre_attn_norm的权重shape
         logger.info(f"3. pre_attn_norm的权重shape: {self.pre_attn_norm.weight.shape}")
-        
         # 注意力机制
-        if use_mixed_attention:
+        if self.attention_type == "mixed":
             self.attention = MixedLatentAttention(
                 hidden_size=hidden_size,
                 num_heads=num_heads,
@@ -172,7 +171,7 @@ class TransformerBlock(nn.Module):
         hidden_states = self.pre_attn_norm(hidden_states)
         
         # 应用注意力
-        if self.use_mixed_attention:
+        if self.attention_type == "mixed":
             attn_output = self.attention(
                 hidden_states=hidden_states,
                 freqs_cis=freqs_cis,
@@ -248,11 +247,12 @@ class StockTransformerModel(nn.Module):
         q_lora_rank: int = 16,
         kv_lora_rank: int = 32,  
         attention_scale_factor: float = 1.0,
-        use_mixed_attention: bool = True,
+        attention_type: str = "mixed",
         max_batch_size: int = 32,
         rope_scaling_factor: float = 1.0,
         rope_theta: float = 10000.0,
         prediction_type: str = "regression",
+        rotary_type: str = "rope"
     ):
         """
         初始化股票价格预测的Transformer模型
@@ -274,11 +274,12 @@ class StockTransformerModel(nn.Module):
             q_lora_rank: Q的低秩适应维度
             kv_lora_rank: K和V的低秩适应维度
             attention_scale_factor: 注意力缩放因子
-            use_mixed_attention: 是否使用混合潜在注意力
+            attention_type: 注意力类型,可选mixed,stardard,gqa
             max_batch_size: 最大批量大小
             rope_scaling_factor: 位置编码缩放因子
             rope_theta: 位置编码base
             prediction_type: 预测类型，"regression"或"classification"
+            rotary_type: 位置编码类型，可选rope,ntk_rope
         """
         super().__init__()
         
@@ -294,16 +295,26 @@ class StockTransformerModel(nn.Module):
         logger.info(f"1. input_projection的权重shape: {self.input_projection.weight.shape}")
         
         # 初始化RopE位置编码，位置编码维度信息： rotary_emb -> Tensor[max_seq_len, dim]
-        self.rotary_emb = RotaryEmbedding(
-            # RoPE使用的维度需要是偶数，因为RoPE的实现方式需要将数据映射到复数空间
-            dim=qk_rope_head_dim,
-            # 最大序列长度  
-            max_seq_len=max_seq_len,
-            # 位置编码base
-            theta=rope_theta,
-            # 位置编码缩放因子
-            scaling_factor=rope_scaling_factor
-        )
+        if rotary_type == "ntk_rope":
+            self.rotary_emb = NTKScaledRotaryEmbedding(
+                dim=qk_rope_head_dim,
+                max_seq_len=max_seq_len,
+                original_max_len=max_seq_len,
+                scaling_factor=rope_scaling_factor,
+                beta_fast=32,
+                beta_slow=1
+            )
+        else:
+            self.rotary_emb = RotaryEmbedding(
+                # RoPE使用的维度需要是偶数，因为RoPE的实现方式需要将数据映射到复数空间
+                dim=qk_rope_head_dim,
+                # 最大序列长度  
+                max_seq_len=max_seq_len,
+                # 位置编码base
+                theta=rope_theta,
+                # 位置编码缩放因子
+                scaling_factor=rope_scaling_factor
+            )
         # 打印rotary_emb的权重shape
         logger.info(f"2. rotary_emb的权重shape: {self.rotary_emb.freqs_buffer.shape}")
 
@@ -323,7 +334,7 @@ class StockTransformerModel(nn.Module):
                 q_lora_rank=q_lora_rank,
                 kv_lora_rank=kv_lora_rank,
                 attention_scale_factor=attention_scale_factor,
-                use_mixed_attention=use_mixed_attention,
+                attention_type=attention_type,
                 max_batch_size=max_batch_size,
                 max_seq_len=max_seq_len,
                 dtype=dtype
@@ -341,7 +352,7 @@ class StockTransformerModel(nn.Module):
             # 分类: 预测上涨/下跌/不变
             self.head = nn.Linear(hidden_size, 3)
         
-        # 初始化模型权重
+        # 初始化子模块所有的模型权重__init_weights()
         self.apply(self._init_weights)
     
     def _init_weights(self, module):

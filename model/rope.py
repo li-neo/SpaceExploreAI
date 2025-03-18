@@ -42,11 +42,19 @@ def precompute_freqs_cis(dim: int, max_seq_len: int, theta: float = 10000.0, sca
 def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor, position_ids=None) -> torch.Tensor:
     """
     应用旋转位置编码到输入张量
+
+        # q_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
+        # freqs_cis: [max_seq_len,qk_rope_head_dim]
+        # position_ids: [batch_size,seq_len]
     
     参数:
         x: 输入张量 [batch_size, seq_len, n_heads, head_dim] 或 [batch_size, seq_len, head_dim]
-        freqs_cis: 预计算的频率张量 [seq_len, dim/2]
-        position_ids: 位置ID，如果None则使用默认顺序位置
+        freqs_cis: 预计算的频率张量 [max_seq_len, dim/2]
+
+
+        position_ids: 位置ID，如果None则使用默认顺序位置, 动态控制位置编码的索引映射
+           position_ids的作用主要有两点：一是允许动态指定位置，适应非连续或特定顺序的位置；
+           二是确保在不同批次或变长序列中正确应用旋转编码，维持模型的相对位置处理能力
 
     返回:
         应用了旋转位置编码的张量
@@ -83,9 +91,11 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor, position_ids=None
             raise ValueError(f"序列长度 ({seq_len}) 超过了预计算的频率张量长度 ({freqs_cis.shape[0]})")
         freqs_cis = freqs_cis[:seq_len]  # [seq_len, head_dim/2]
         # 扩展到批量维度
+        # freqs_cis: [seq_len, head_dim/2] -> [batch_size, seq_len, head_dim/2]
         freqs_cis = freqs_cis.unsqueeze(0).expand(batch_size, seq_len, head_dim // 2)  # [batch_size, seq_len, head_dim/2]
     
     # 将输入张量视为复数
+    # x: [batch_size, seq_len, n_heads, head_dim] -> [batch_size, seq_len, n_heads, head_dim/2] 
     x_complex = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
     
     # 调整频率张量的形状以便于广播
@@ -98,6 +108,7 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor, position_ids=None
     x_rotated = torch.view_as_real(x_complex * freqs_cis).flatten(-2)
     
     # 恢复原始数据类型
+    # x_rotated: [batch_size, seq_len, n_heads, head_dim]
     return x_rotated.type(dtype)
 
 

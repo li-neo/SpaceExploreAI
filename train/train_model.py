@@ -208,7 +208,7 @@ def train_model(args: ModelArgs):
             q_lora_rank=args.q_lora_rank,
             kv_lora_rank=args.kv_lora_rank,
             attention_scale_factor=args.attention_scale_factor,
-            use_mixed_attention=not args.disable_mixed_attention,
+            attention_type=args.attention_type,
             max_batch_size=args.max_batch_size,
             rope_scaling_factor=args.rope_scaling_factor,
             rope_theta=args.rope_theta,

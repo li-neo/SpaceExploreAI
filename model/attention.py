@@ -21,7 +21,7 @@ class MultiLatentAttention(nn.Module):
                  num_heads: int,
                  qk_nope_head_dim: int = 32,
                  qk_rope_head_dim: int = 32,
-                 v_head_dim: int = 128,
+                 v_head_dim: int = 64,
                  dropout: float = 0.1,
                  q_lora_rank: int = 0,
                  kv_lora_rank: int = 32,
@@ -137,9 +137,10 @@ class MultiLatentAttention(nn.Module):
         返回:
             (attn_output, attention_weights, past_key_value) 的元组
         """
+        # hidden_states: [batch_size,seq_len,hidden_size] [16,32,256]
         batch_size, seq_len, _ = hidden_states.size()
         
-        # 处理位置ID，确保不超过freqs_cis的最大长度
+        # 处理位置ID，确保不超过freqs_cis的最大长度 TODO:需要优化成DeepSeek的position_ids
         if position_ids is None:
             # 如果没有提供position_ids，则自动生成
             # 使用模运算确保所有位置ID都在有效范围内
@@ -153,9 +154,10 @@ class MultiLatentAttention(nn.Module):
         
         # 计算Q投影
         if self.q_lora_rank == 0:
+            # [batch_size, seq_len, hidden_size] -> [batch_size, seq_len, num_heads*qk_head_dim]
             q = self.q_proj(hidden_states)
         else:
-            #[batch_size,seq_len,hidden_size] -> [batch_size,seq_len,q_lora_rank] -> [batch_size,seq_len,num_heads*qk_head_dim]
+            #[batch_size,seq_len,hidden_size] -> norm[batch_size,seq_len,q_lora_rank] -> [batch_size,seq_len,num_heads*qk_head_dim]
             q = self.q_proj_b(self.q_norm(self.q_proj_a(hidden_states)))
         
         # 重塑Q为多头形式 [batch_size,seq_len,num_heads*qk_head_dim] -> [batch_size, seq_len, num_heads, qk_head_dim]
@@ -165,29 +167,51 @@ class MultiLatentAttention(nn.Module):
         # qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
         q_nope, q_rope = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
         # q_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
-
-
         # q_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
+        
+
         # freqs_cis: [max_seq_len,qk_rope_head_dim]
+        # position_ids: [batch_size,seq_len]
         # 应用旋转位置编码到需要的部分，使用安全的position_ids
+        # q_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
         q_rope = apply_rotary_emb(q_rope, freqs_cis, position_ids)
         
         # 计算KV投影
+        # [batch_size,seq_len,hidden_size] -> [batch_size,seq_len,kv_lora_rank+qk_rope_head_dim]
         kv = self.kv_proj_a(hidden_states)
+        # [batch_size,seq_len,kv_lora_rank+qk_rope_head_dim] -> 
+        # kv[batch_size,seq_len,kv_lora_rank]; 
+        # k_rope[batch_size,seq_len,qk_rope_head_dim]
         kv, k_rope = torch.split(kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
         
         # 应用旋转位置编码到k_rope，使用安全的position_ids
+        #freqs_cis: [max_seq_len,qk_rope_head_dim / 2]
+        # position_ids: [batch_size,seq_len]
+        #unsqueeze(2): Add 2 new dimensions at index 2
+        # k_rope: [batch_size,seq_len,1,qk_rope_head_dim]
         k_rope = apply_rotary_emb(k_rope.unsqueeze(2), freqs_cis, position_ids)
+        
+        # k_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim] -> [batch_size,seq_len,qk_rope_head_dim]
+        k_rope = k_rope.squeeze(2)
         
         # 计算KV的第二次投影
         kv = self.kv_norm(kv)
+        # kv: [batch_size,seq_len,kv_lora_rank] -> 
+        # [batch_size,seq_len,num_heads * (qk_nope_head_dim + v_head_dim)]
         kv = self.kv_proj_b(kv)
+        
+        # kv: [batch_size,seq_len,num_heads * (qk_nope_head_dim + v_head_dim)] -> 
+        # [batch_size,seq_len,num_heads,qk_nope_head_dim + v_head_dim]
         kv = kv.view(batch_size, seq_len, self.num_heads, self.qk_nope_head_dim + self.v_head_dim)
         
         # 分离K和V
+        # k_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
+        # v: [batch_size,seq_len,num_heads,v_head_dim]
         k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
         
         # 合并K的两部分
+        # k_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
+        # k_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
         k = torch.cat([k_nope, k_rope.expand(-1, -1, self.num_heads, -1)], dim=-1)
         
         # 处理过去的键值对（用于解码器）
@@ -244,15 +268,15 @@ class MixedLatentAttention(nn.Module):
     def __init__(self, 
                  hidden_size: int, 
                  num_heads: int,
-                 qk_nope_head_dim: int = 128,
-                 qk_rope_head_dim: int = 64,
-                 v_head_dim: int = 128,
-                 dropout: float = 0.0,
+                 qk_nope_head_dim: int = 32,
+                 qk_rope_head_dim: int = 32,
+                 v_head_dim: int = 64,
+                 dropout: float = 0.1,
                  q_lora_rank: int = 0,
-                 kv_lora_rank: int = 512,
+                 kv_lora_rank: int = 32,
                  attention_scale_factor: float = 1.0,
                  max_batch_size: int = 32,
-                 max_seq_len: int = 4096,
+                 max_seq_len: int = 128,
                  dtype: str = "float16",
                  attention_type: str = "absorb"):  # 默认使用吸收式注意力
         """
@@ -720,12 +744,22 @@ if __name__ == "__main__":
     logger.info(f"隐藏状态形状hidden_states.shape: {hidden_states.shape}")
     
     # 预计算频率：确保频率张量的维度与最大序列长度匹配
+    # freqs_cis: [max_seq_len,qk_rope_head_dim / 2]
     freqs_cis = precompute_freqs_cis(qk_rope_head_dim, max_seq_len)
     logger.info(f"预计算位置编码形状freqs_cis.shape: {freqs_cis.shape}")
-    
     # 创建自定义位置ID - 方法1：使用模运算确保不超过max_seq_len
+    # position_ids_1: [0,1,2,...,seq_len-1] -> [0,1,2,...,max_seq_len-1]
     position_ids_1 = torch.arange(seq_len, dtype=torch.long) % max_seq_len
+    # position_ids_1: [0,1,2,...,seq_len-1] -> [batch_size,seq_len]
+    # tensor([[0, 1, 2, ..., 31],
+    #         [0, 1, 2, ..., 31],
+    #         ...
+    #          16 batch_size
+    #         ...
+    #         [0, 1, 2, ..., 31]])
     position_ids_1 = position_ids_1.unsqueeze(0).expand(batch_size, -1)
+    # 打印position_ids_1的值    
+    logger.info(f"位置ID方法1值: {position_ids_1}")
     logger.info(f"位置ID方法1形状: {position_ids_1.shape}, 最大值: {position_ids_1.max().item()}")
     
     # 创建自定义位置ID - 方法2：使用循环位置编码

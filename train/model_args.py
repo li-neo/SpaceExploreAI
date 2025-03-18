@@ -82,15 +82,11 @@ class ModelArgs():
     num_experts_per_token: int = 2  # 每个token使用的专家数量,每个输入会激活的专家数量
 
     # mla
-
-    # moe
-    
-
     # 混合注意力
+    attention_type: str = "mixed"  # 注意力类型,可选mixed,stardard,gqa
     attention_dropout: float = 0.1  # 注意力Dropout比率,注意力机制中的丢弃率
     hidden_dropout: float = 0.1  # 隐藏层Dropout比率,前馈网络中的丢弃率
     attention_scale_factor: float = 1.0  # 注意力缩放因子,用于调整注意力机制的权重
-    disable_mixed_attention: bool = False  # 是否禁用混合潜在注意力,False表示使用混合注意力机制
    
 
     # 低秩适应

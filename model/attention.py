@@ -376,7 +376,7 @@ class MixedLatentAttention(nn.Module):
         
         # 使用 torch.zeros 而非 torch.empty 以避免未初始化内存可能导致的不确定性
         if self.use_absorb_attn:
-            # 对于吸收式注意力，缓存KV潜在投影和位置编码
+            # 对于吸收式注意力，缓存KV潜在投影和位置编码，kv——chahe仅缓存上一次的kv即可
             self.register_buffer("kv_cache", torch.zeros(max_batch_size, max_seq_len, kv_lora_rank, dtype=torch_dtype))
             self.register_buffer("pe_cache", torch.zeros(max_batch_size, max_seq_len, qk_rope_head_dim, dtype=torch_dtype))
         elif self.use_gqa:
@@ -385,6 +385,7 @@ class MixedLatentAttention(nn.Module):
             self.register_buffer("v_cache", torch.zeros(max_batch_size, max_seq_len, self.num_kv_heads, self.v_head_dim, dtype=torch_dtype))
         else:
             # 对于标准注意力，直接缓存K和V
+            # 不同于标准多头，标准多头没有使用k——cache
             self.register_buffer("k_cache", torch.zeros(max_batch_size, max_seq_len, num_heads, self.qk_head_dim, dtype=torch_dtype))
             self.register_buffer("v_cache", torch.zeros(max_batch_size, max_seq_len, num_heads, self.v_head_dim, dtype=torch_dtype))
     
@@ -457,7 +458,7 @@ class MixedLatentAttention(nn.Module):
         batch_size, seq_len, _ = hidden_states.size()
         end_pos = start_pos + seq_len
         
-        # 检查缓存大小是否足够
+        # 检查缓存大小是否足够， TODO： 可以考虑使用动态缓存
         if end_pos > self.max_seq_len:
             raise ValueError(f"序列长度 ({end_pos}) 超过了最大缓存长度 ({self.max_seq_len})")
         
@@ -574,20 +575,27 @@ class MixedLatentAttention(nn.Module):
         q = q.view(batch_size, seq_len, self.num_heads, self.qk_head_dim)
         
         # 分离不使用位置编码和使用位置编码的部分
+        # q_nope: [batch_size, seq_len, num_heads, qk_nope_head_dim]
+        # q_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
         
         # 应用旋转位置编码到需要的部分
         q_pe = apply_rotary_emb(q_pe, freqs_cis, position_ids)
         
         # 计算KV投影
+        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]   
         kv = self.attention.kv_proj_a(hidden_states)
+        # kv: [batch_size, seq_len, num_heads, kv_lora_rank + qk_rope_head_dim]
         kv, k_pe = torch.split(kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
         
         # 应用旋转位置编码到k_pe
+        # k_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
         k_pe = apply_rotary_emb(k_pe.unsqueeze(2), freqs_cis, position_ids)
         
         # 计算KV的第二次投影
+        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]
         kv = self.attention.kv_norm(kv)
+        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]
         kv = self.attention.kv_proj_b(kv)
         
         # 重塑KV为多头形式

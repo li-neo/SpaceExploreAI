@@ -11,6 +11,51 @@ from log.logger import get_logger
 
 logger = get_logger(__file__, "transformer.log")
 
+# 添加最新的Dynamic tanh 代替 RMSNorm
+"""
+DyT（Dynamic Tanh）
+基本原理：
+    DyT 是一种基于 tanh 函数的动态缩放方法。
+    它通过一个可学习的缩放参数 alpha 和 tanh 函数对输入进行非线性变换。
+计算步骤：
+    计算 tanh(alpha * x)，其中 alpha 是可学习参数。
+    进行仿射变换：output = tanh_output * weight + bias。
+计算复杂性：
+    tanh 函数的计算复杂度较低，因为它是一个简单的逐元素非线性变换。
+    由于不需要计算均值或方差，DyT 的计算量主要集中在 tanh 和简单的乘加运算上。
+RMSNorm（Root Mean Square Normalization）
+基本原理：
+    RMSNorm 是一种基于均方根的归一化方法。
+    它通过计算输入的均方根（RMS）来进行归一化。
+计算步骤：
+    计算均方根：rms = sqrt(mean(x^2) + epsilon)。
+    进行归一化：output = x / rms * weight。
+计算复杂性：
+    需要计算输入的平方和均值，这涉及到对整个输入张量的归约操作。
+    归约操作（如求均值）通常比逐元素操作（如 tanh）计算量更大，尤其是在大批量或长序列的情况下。
+比较与总结
+计算量：
+    DyT 的计算量主要来自于逐元素的 tanh 变换和简单的仿射变换。
+    RMSNorm 需要计算均方根，这涉及到额外的归约操作，通常计算量更大。
+应用场景：
+    DyT 适用于需要简单非线性变换的场景，计算效率高。
+    RMSNorm 提供了一种更稳定的归一化方法，适用于需要对输入进行标准化的场景。
+选择依据：
+    如果计算效率是主要考虑因素，且不需要严格的归一化，DyT 可能是更好的选择。
+    如果需要更稳定的归一化效果，RMSNorm 可能更合适，尽管计算量稍大。
+    通过这种比较，我们可以看到，DyT 由于其简单的计算步骤，通常在计算量上比 RMSNorm 更少。
+"""
+class DyT(nn.Module):
+    def __init__(self, num_features, alpha_init=0.5):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.ones(1) * alpha_init)  # 可学习的缩放参数
+        self.weight = nn.Parameter(torch.ones(num_features))   # 通道缩放参数γ
+        self.bias = nn.Parameter(torch.zeros(num_features))     # 通道偏移参数β
+
+    def forward(self, x):
+        x = torch.tanh(self.alpha * x)         # 动态缩放并应用tanh
+        return x * self.weight + self.bias     # 仿射变换
+
 
 class RMSNorm(nn.Module):
     """

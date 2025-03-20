@@ -583,42 +583,56 @@ class MixedLatentAttention(nn.Module):
         q_pe = apply_rotary_emb(q_pe, freqs_cis, position_ids)
         
         # 计算KV投影
-        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]   
+        # kv: [batch_size, seq_len, qk_nope_head_dim + kv_lora_rank]   
         kv = self.attention.kv_proj_a(hidden_states)
-        # kv: [batch_size, seq_len, num_heads, kv_lora_rank + qk_rope_head_dim]
+        # kv: [batch_size, seq_len, kv_lora_rank]
+        # k_pe: [batch_size, seq_len, qk_rope_head_dim]
         kv, k_pe = torch.split(kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
         
         # 应用旋转位置编码到k_pe
+        # k_pe: [batch_size, seq_len, qk_rope_head_dim]
         # k_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
         k_pe = apply_rotary_emb(k_pe.unsqueeze(2), freqs_cis, position_ids)
         
         # 计算KV的第二次投影
-        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]
+        # kv: [batch_size, seq_len, kv_lora_rank]
         kv = self.attention.kv_norm(kv)
-        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]
+        # kv: [batch_size, seq_len, num_heads * (qk_nope_head_dim + v_head_dim)]
         kv = self.attention.kv_proj_b(kv)
         
         # 重塑KV为多头形式
+        # kv: [batch_size, seq_len, num_heads, qk_nope_head_dim + v_head_dim]
         kv = kv.view(batch_size, seq_len, self.num_heads, self.qk_nope_head_dim + self.v_head_dim)
         
         # 分离K和V
+        # k_nope: [batch_size, seq_len, num_heads, qk_nope_head_dim]
+        # v: [batch_size, seq_len, num_heads, v_head_dim]
         k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
         
         # 重塑为GQA格式（减少KV头数）
         # 将Q头分组，每组对应一个KV头
+        # k_nope: [batch_size, seq_len, num_kv_groups, num_kv_heads, qk_nope_head_dim]
         k_nope = k_nope.view(batch_size, seq_len, self.num_kv_groups, self.num_kv_heads, self.qk_nope_head_dim)
+        
+        # k_nope: [batch_size, seq_len, num_kv_heads, qk_nope_head_dim]
         k_nope = k_nope.mean(dim=2)  # 合并同一KV头对应的多个Q头
         
+        # 先移除num_heads的维度再扩展num_kv_heads，这样确保每个num_kv_heads都有qk_rope_head_dim，ke不会丢失信息，k_nope会进行聚合
         k_pe = k_pe.squeeze(2).view(batch_size, seq_len, 1, self.qk_rope_head_dim)
+        # k_pe: [batch_size, seq_len, num_kv_heads, qk_rope_head_dim]
         k_pe = k_pe.expand(-1, -1, self.num_kv_heads, -1)  # 扩展到所有KV头
         
+        # v: [batch_size, seq_len, num_kv_groups, num_kv_heads, v_head_dim]
         v = v.view(batch_size, seq_len, self.num_kv_groups, self.num_kv_heads, self.v_head_dim)
+        # v: [batch_size, seq_len, num_kv_heads, v_head_dim]
         v = v.mean(dim=2)  # 合并同一KV头对应的多个Q头
         
         # 合并K的两部分
+        # k: [batch_size, seq_len, num_kv_heads, qk_nope_head_dim + qk_rope_head_dim]； qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
         k = torch.cat([k_nope, k_pe], dim=-1)
         
         # 更新缓存
+
         self.k_cache[:batch_size, start_pos:end_pos] = k
         self.v_cache[:batch_size, start_pos:end_pos] = v
         
@@ -641,6 +655,7 @@ class MixedLatentAttention(nn.Module):
         if attention_mask is not None:
             # 确保掩码维度正确 [batch_size, 1, 1, 1, seq_len]
             attention_mask = self._prepare_attention_mask(attention_mask, batch_size, end_pos, target_dim=5)
+            # attention_scores: [batch_size, seq_len, num_kv_groups, num_kv_heads, seq_len]
             attention_scores = attention_scores + attention_mask
         
         # 应用softmax获取注意力权重
@@ -692,23 +707,33 @@ class MixedLatentAttention(nn.Module):
         q = q.view(batch_size, seq_len, self.num_heads, self.qk_head_dim)
         
         # 分离不使用位置编码和使用位置编码的部分
+        # q_nope: [batch_size, seq_len, num_heads, qk_nope_head_dim]
+        # q_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
         
         # 应用旋转位置编码到需要的部分
+        # q_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
         q_pe = apply_rotary_emb(q_pe, freqs_cis, position_ids)
         
         # 计算KV投影
+        # kv: [batch_size, seq_len, qk_nope_head_dim + kv_lora_rank]   
         kv = self.attention.kv_proj_a(hidden_states)
+        # kv: [batch_size, seq_len, kv_lora_rank]
+        # k_pe: [batch_size, seq_len, qk_rope_head_dim]
         kv, k_pe = torch.split(kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
         
-        # 应用旋转位置编码到k_pe
+        # 应用旋转位置编码到k_pe，先扩展维度，再应用旋转位置编码，再移除扩展的维度
         k_pe = apply_rotary_emb(k_pe.unsqueeze(2), freqs_cis, position_ids).squeeze(2)
         
         # 更新KV缓存
+        # kv: [batch_size, seq_len, kv_lora_rank]
         self.kv_cache[:batch_size, start_pos:end_pos] = self.attention.kv_norm(kv)
+        # k_pe: [batch_size, seq_len, qk_rope_head_dim]  
         self.pe_cache[:batch_size, start_pos:end_pos] = k_pe
         
         # 获取KV投影的权重
+        # kv_proj_b.weight: [self.num_heads * (self.qk_nope_head_dim + self.v_head_dim), self.kv_lora_rank]
+        # wkv_b: [self.num_heads, (self.qk_nope_head_dim + self.v_head_dim), self.kv_lora_rank]
         wkv_b = self.attention.kv_proj_b.weight.view(self.num_heads, -1, self.kv_lora_rank)
         
         # 验证权重矩阵分割是否正确
@@ -720,9 +745,20 @@ class MixedLatentAttention(nn.Module):
             f"权重矩阵维度不匹配: {wkv_b.shape[1]} != {k_proj_size + v_proj_size}"
         
         # 计算Q和KV的乘积
+        # q_nope: [batch_size, seq_len, num_heads, qk_nope_head_dim]
+        # wkv_b: [self.num_heads, (self.qk_nope_head_dim + self.v_head_dim), self.kv_lora_rank]
+        # q_nope: [batch_size, seq_len, num_heads, kv_lora_rank]
         q_nope = torch.einsum("bshd,hdc->bshc", q_nope, wkv_b[:, :k_proj_size])
         
         # 计算注意力分数
+        # q_nope: [batch_size, seq_len, num_heads, kv_lora_rank]
+        # q_pe: [batch_size, seq_len, num_heads, qk_rope_head_dim]
+
+        # self.kv_cache[:batch_size, :end_pos]: btc[batch_size, end_pos, kv_lora_rank]
+        # self.pe_cache[:batch_size, :end_pos]: btr[batch_size, end_pos, qk_rope_head_dim]
+
+        # 1. bsht: [batch_size, seq_len, num_heads, end_pos]
+        # 2. bsht: [batch_size, seq_len, num_heads, end_pos]
         attn_scores = (
             torch.einsum("bshc,btc->bsht", q_nope, self.kv_cache[:batch_size, :end_pos]) +
             torch.einsum("bshr,btr->bsht", q_pe, self.pe_cache[:batch_size, :end_pos])
@@ -734,20 +770,34 @@ class MixedLatentAttention(nn.Module):
             if attention_mask.dim() == 4:
                 # 转换为 [batch_size, 1, seq_len]
                 attention_mask = attention_mask.squeeze(2)
+            #attn_scores: [batch_size, seq_len, num_heads, end_pos]
             attn_scores = attn_scores + attention_mask
         
         # 应用softmax获取注意力权重
         attn_weights = F.softmax(attn_scores, dim=-1, dtype=torch.float32).type_as(q)
         
         # 应用dropout
+        # attn_weights: [batch_size, seq_len, num_heads, end_pos]
         attn_weights = self.attention.attn_dropout(attn_weights)
         
         # 计算注意力输出
+        # attn_weights: [batch_size, seq_len, num_heads, end_pos]
+        # self.kv_cache[:batch_size, :end_pos]: [batch_size, end_pos, kv_lora_rank]
+        # x: [batch_size, seq_len, num_heads, kv_lora_rank]
         x = torch.einsum("bsht,btc->bshc", attn_weights, self.kv_cache[:batch_size, :end_pos])
+
+        # wkv_b: [self.num_heads, (self.qk_nope_head_dim + self.v_head_dim), self.kv_lora_rank]
+        # x: [batch_size, seq_len, num_heads, kv_lora_rank] -> 
+        # x: [batch_size, seq_len, num_heads, v_head_dim]
         x = torch.einsum("bshc,hdc->bshd", x, wkv_b[:, -v_proj_size:])
         
         # 重塑输出并应用输出投影
+        # x: [batch_size, seq_len, num_heads, v_head_dim] ->
+        # x: [batch_size, seq_len, num_heads * v_head_dim]
         x = x.reshape(batch_size, seq_len, self.num_heads * self.v_head_dim)
+
+        # x: [batch_size, seq_len, num_heads * v_head_dim] ->
+        # x: [batch_size, seq_len, hidden_size]
         x = self.attention.out_proj(x)
         
         # 处理返回值

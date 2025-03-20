@@ -147,9 +147,12 @@ class RoutingNetwork(nn.Module):
             selected_experts: 选择的专家索引 [batch_size, seq_len, num_experts_per_token]
         """
         # 计算专家分数
+        # x: [batch_size, seq_len, hidden_size]
+        # scores: [batch_size, seq_len, num_experts]
         scores = self.router(x)  # [batch_size, seq_len, num_experts]
         
         # 原始分数用于之后的权重计算
+        # original_scores: [batch_size, seq_len, num_experts]
         original_scores = scores.clone()
         
         # 应用分数函数
@@ -185,7 +188,7 @@ class MixtureOfExperts(nn.Module):
                 moe_intermediate_size: int,
                 num_experts: int = 8,
                 num_experts_per_token: int = 2,
-                num_shared_experts: int = 0,
+                num_shared_experts: int = 1,
                 shared_intermediate_size: int = None,
                 activation_fn: str = "silu",
                 routing_scale: float = 1.0,
@@ -254,9 +257,12 @@ class MixtureOfExperts(nn.Module):
         # 保存原始形状
         original_shape = x.shape
         # 重塑为二维方便处理
+        # x_2d: [batch_size * seq_len, hidden_size]
         x_2d = x.reshape(-1, self.hidden_size)
         
         # 如果没有提供专家选择，使用路由器
+        # routing_weights: [batch_size * seq_len, num_experts]
+        # expert_indices: [batch_size * seq_len, num_experts_per_token]
         if expert_choices is None:
             routing_weights, expert_indices = self.router(x_2d)
         else:
@@ -298,9 +304,9 @@ if __name__ == "__main__":
     # 测试参数
     batch_size = 2
     seq_len = 16
-    hidden_size = 768
-    intermediate_size = 2048
-    moe_intermediate_size = 256
+    hidden_size  = 256
+    intermediate_size = 1024
+    moe_intermediate_size = 1024
     num_experts = 8
     num_experts_per_token = 2
     

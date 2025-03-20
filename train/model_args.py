@@ -65,29 +65,46 @@ class ModelArgs():
     scaler_type: str = "robust"  # 数据缩放器类型,可选"standard"(标准化)、"minmax"(最小最大化)或"robust"(稳健缩放)
     test_size: float = 0.1  # 测试集比例,占总数据的10%
     val_size: float = 0.1  # 验证集比例,占总数据的10%
-    sequence_length: int = 32  # 输入序列长度,即每个样本包含的时间步数,较小的值可降低内存使用,应该与数据处理的seq保持一致 DataArgs.seq_length
-    max_sequence_length: int = 128  # 模型能处理的最大序列长度,用于定义模型架构的上限
     prediction_horizon: int = 2  # 预测周期,即预测未来多少个时间步
     feature_groups: str = None  # 特征组,指定使用哪些特征组,多个用逗号分隔
+    num_workers: int = 2  # 数据加载线程数,用于并行数据加载,较小的值适合Mac的CPU核心数
+
+    # 模型相关参数
+    sequence_length: int = 32  # 输入序列长度,即每个样本包含的时间步数,较小的值可降低内存使用,应该与数据处理的seq保持一致 DataArgs.seq_length
+    max_sequence_length: int = 128  # 模型能处理的最大序列长度,用于定义模型架构的上限
     batch_size: int = 16  # 训练批量大小,每次更新使用的样本数量
     max_batch_size: int = 32  # 最大批量大小,用于推理或特殊情况
-    num_workers: int = 2  # 数据加载线程数,用于并行数据加载,较小的值适合Mac的CPU核心数
-    
-    # 模型相关参数 参数共计500M
+    """
+    TODO: RMSNorm VS  BN  
+          1. 金融数据更具有高波动性、异常值、噪音，RMSNorm比LayerNorm更稳定； 
+          2.金融数据序列可变，RMS更能适应不同的序列长度
+          3.RMSNorm在处理异常值时，不会出现梯度爆炸或消失的问题
+          4.RMSNorm已被证明在长序列和变长输入场景下比BatchNorm更有效
+          5. SpaceExploreAI模型的输入数据序列长度和特征值基本上是固定的， 所有使用BatchNorm也许会更有优势
+
+          RMSNorm  VS   Dyt
+          1. 虽然DyT计算效率较高（没有归约操作），但RMSNorm提供更稳定的归一化效果。
+          2. 对于金融预测这样的任务，模型稳定性通常比轻微的性能提升更重要
+    """
+    norm: str = "rmsnorm"  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
+
+    #Block
     hidden_size: int = 256  # 隐藏层维度,模型内部表示的维度大小
     num_layers: int = 4  # Transformer层数,堆叠的Transformer编码器层数
-    num_heads: int = 4  # 注意力头数量,多头注意力机制中的头数
-    moe_intermediate_size: int = 256  # MoE中间层维度,混合专家模型中间层的维度
-    num_experts: int = 8  # 专家数量,混合专家模型中的专家数量
-    num_experts_per_token: int = 2  # 每个token使用的专家数量,每个输入会激活的专家数量
+
 
     # mla
     # 混合注意力
+    num_heads: int = 4  # 注意力头数量,多头注意力机制中的头数
     attention_type: str = "mixed"  # 注意力类型,可选mixed,stardard,gqa
     attention_dropout: float = 0.1  # 注意力Dropout比率,注意力机制中的丢弃率
     hidden_dropout: float = 0.1  # 隐藏层Dropout比率,前馈网络中的丢弃率
     attention_scale_factor: float = 1.0  # 注意力缩放因子,用于调整注意力机制的权重
-   
+
+    #moe
+    moe_intermediate_size: int = 1024  # MoE中间层维度,混合专家模型中间层的维度，一般是hidden_size的4倍
+    num_experts: int = 8  # 专家数量,混合专家模型中的专家数量
+    num_experts_per_token: int = 2  # 每个token使用的专家数量,每个输入会激活的专家数量
 
     # 低秩适应
     q_lora_rank: int = 0  # 低秩适应的Q矩阵的秩, 0表示不使用低秩适应

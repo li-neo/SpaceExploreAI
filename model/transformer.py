@@ -81,6 +81,57 @@ class RMSNorm(nn.Module):
         return x / norm * self.weight
 
 
+class BatchNormTransformer(nn.Module):
+    """
+    BatchNorm for Transformer - 时间序列专用批量归一化
+    针对固定长度序列和批量大小进行优化
+    """
+    def __init__(self, hidden_size: int, eps: float = 1e-5, momentum: float = 0.1):
+        """
+        初始化BatchNorm层
+
+        参数:
+            hidden_size: 隐藏层维度
+            eps: 数值稳定性参数
+            momentum: 动量参数，用于更新running_mean和running_var
+        """
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.bias = nn.Parameter(torch.zeros(hidden_size))
+        self.eps = eps
+        self.momentum = momentum
+        self.register_buffer('running_mean', torch.zeros(hidden_size))
+        self.register_buffer('running_var', torch.ones(hidden_size))
+        self.training = True
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """前向传播
+        
+        输入张量维度: [batch_size, seq_len, hidden_size]
+        针对批量和序列维度计算均值和方差
+        """
+        # 训练模式
+        if self.training:
+            # 计算当前批次均值和方差 [hidden_size]
+            # 在batch和seq维度上计算
+            mean = x.mean(dim=(0, 1))
+            var = x.var(dim=(0, 1), unbiased=False)
+            
+            # 更新running统计量
+            self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean.detach()
+            self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var.detach()
+        # 评估模式
+        else:
+            mean = self.running_mean
+            var = self.running_var
+        
+        # 归一化
+        x_normalized = (x - mean) / torch.sqrt(var + self.eps)
+        
+        # 缩放和偏移
+        return x_normalized * self.weight + self.bias
+
+
 class TransformerBlock(nn.Module):
     """
     Transformer编码器块，包含自注意力和前馈网络
@@ -103,7 +154,8 @@ class TransformerBlock(nn.Module):
         attention_type: str = "mixed",
         max_batch_size: int = 32,
         max_seq_len: int = 128,
-        dtype: str = "float16"
+        dtype: str = "float16",
+        norm: str = "rmsnorm"  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
     ):
         """
         初始化Transformer编码器块
@@ -125,6 +177,7 @@ class TransformerBlock(nn.Module):
             attention_type: 注意力类型,可选mixed,stardard,gqa
             max_batch_size: 最大批量大小
             max_seq_len: 最大序列长度
+            norm: 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
         """
         super().__init__()
         
@@ -132,10 +185,23 @@ class TransformerBlock(nn.Module):
         self.hidden_size = hidden_size
         self.attention_type = attention_type
         
-        # 前注意力层归一化
-        self.pre_attn_norm  = RMSNorm(hidden_size)
+        # 选择归一化层类型
+        if norm == "batch_norm":
+            self.pre_attn_norm = BatchNormTransformer(hidden_size)
+            self.pre_moe_norm = BatchNormTransformer(hidden_size)
+            logger.info(f"使用 BatchNorm 作为归一化层")
+        elif norm == "dynamic_tanh":
+            self.pre_attn_norm = DyT(hidden_size)
+            self.pre_moe_norm = DyT(hidden_size)
+            logger.info(f"使用 Dynamic Tanh 作为归一化层")
+        else:  # 默认使用 rmsnorm
+            self.pre_attn_norm = RMSNorm(hidden_size)
+            self.pre_moe_norm = RMSNorm(hidden_size)
+            logger.info(f"使用 RMSNorm 作为归一化层")
+            
         # 打印pre_attn_norm的权重shape
         logger.info(f"3. pre_attn_norm的权重shape: {self.pre_attn_norm.weight.shape}")
+        
         # 注意力机制
         if self.attention_type == "mixed":
             self.attention = MixedLatentAttention(
@@ -164,13 +230,27 @@ class TransformerBlock(nn.Module):
                 kv_lora_rank=kv_lora_rank,
                 attention_scale_factor=attention_scale_factor
             )
-        # 打印attention的权重shape
-        logger.info(f"4. attention的权重shape: {self.attention.weight.shape}")
-        
-        # 前MoE层归一化
-        self.pre_moe_norm = RMSNorm(hidden_size)
-        # 打印pre_moe_norm的权重shape
-        logger.info(f"5. pre_moe_norm的权重shape: {self.pre_moe_norm.weight.shape}")
+        # 打印attention的权重shape:
+        if self.attention_type == "mixed":
+            logger.info(f"4. attention的权重shape: 混合注意力模块，包含多个子权重")
+            logger.info(f"   - attention.attention.out_proj.weight shape: {self.attention.attention.out_proj.weight.shape}")
+            logger.info(f"   - attention.attention.kv_proj_a.weight shape: {self.attention.attention.kv_proj_a.weight.shape}")
+            logger.info(f"   - attention.attention.kv_proj_b.weight shape: {self.attention.attention.kv_proj_b.weight.shape}")
+            if self.attention.attention.q_lora_rank == 0:
+                logger.info(f"   - attention.attention.q_proj.weight shape: {self.attention.attention.q_proj.weight.shape}")
+            else:
+                logger.info(f"   - attention.attention.q_proj_a.weight shape: {self.attention.attention.q_proj_a.weight.shape}")
+                logger.info(f"   - attention.attention.q_proj_b.weight shape: {self.attention.attention.q_proj_b.weight.shape}")
+        else:
+            logger.info(f"4. attention的权重shape: 多头注意力模块，包含多个子权重")
+            logger.info(f"   - attention.out_proj.weight shape: {self.attention.out_proj.weight.shape}")
+            logger.info(f"   - attention.kv_proj_a.weight shape: {self.attention.kv_proj_a.weight.shape}")
+            logger.info(f"   - attention.kv_proj_b.weight shape: {self.attention.kv_proj_b.weight.shape}")
+            if self.attention.q_lora_rank == 0:
+                logger.info(f"   - attention.q_proj.weight shape: {self.attention.q_proj.weight.shape}")
+            else:
+                logger.info(f"   - attention.q_proj_a.weight shape: {self.attention.q_proj_a.weight.shape}")
+                logger.info(f"   - attention.q_proj_b.weight shape: {self.attention.q_proj_b.weight.shape}")
         
         # MoE前馈网络
         self.moe = MixtureOfExperts(
@@ -297,7 +377,8 @@ class StockTransformerModel(nn.Module):
         rope_scaling_factor: float = 1.0,
         rope_theta: float = 10000.0,
         prediction_type: str = "regression",
-        rotary_type: str = "rope"
+        rotary_type: str = "rope",
+        norm: str = "rmsnorm"  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
     ):
         """
         初始化股票价格预测的Transformer模型
@@ -325,6 +406,7 @@ class StockTransformerModel(nn.Module):
             rope_theta: 位置编码base
             prediction_type: 预测类型，"regression"或"classification"
             rotary_type: 位置编码类型，可选rope,ntk_rope
+            norm: 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
         """
         super().__init__()
         
@@ -334,6 +416,10 @@ class StockTransformerModel(nn.Module):
         self.num_layers = num_layers
         self.max_seq_len = max_seq_len
         self.prediction_type = prediction_type
+        self.norm = norm
+        
+        # 记录使用的归一化方法
+        logger.info(f"使用 {norm} 作为归一化方法")
         
         # 初始化输入投影层（将64维特征投影到256维）
         self.input_projection = nn.Linear(vocab_size, hidden_size)
@@ -382,12 +468,18 @@ class StockTransformerModel(nn.Module):
                 attention_type=attention_type,
                 max_batch_size=max_batch_size,
                 max_seq_len=max_seq_len,
-                dtype=dtype
+                dtype=dtype,
+                norm=norm
             ) for _ in range(num_layers)
         ])
         
         # 最终层归一化
-        self.final_norm = RMSNorm(hidden_size)
+        if norm == "batch_norm":
+            self.final_norm = BatchNormTransformer(hidden_size)
+        elif norm == "dynamic_tanh":
+            self.final_norm = DyT(hidden_size)
+        else:  # 默认使用 rmsnorm
+            self.final_norm = RMSNorm(hidden_size)
         
         # 预测头
         if prediction_type == "regression":
@@ -521,7 +613,8 @@ class StockPricePredictor:
         v_head_dim: int = 64,
         max_seq_len: int = 60,
         prediction_type: str = "regression",
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        norm: str = "rmsnorm"  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
     ):
         """
         初始化股票价格预测器
@@ -537,12 +630,14 @@ class StockPricePredictor:
             max_seq_len: 最大序列长度
             prediction_type: 预测类型，"regression"或"classification"
             device: 运行设备
+            norm: 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
         """
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
         self.prediction_type = prediction_type
         self.device = device
+        self.norm = norm
         
         # 创建模型
         self.model = StockTransformerModel(
@@ -554,7 +649,8 @@ class StockPricePredictor:
             qk_rope_head_dim=qk_rope_head_dim,
             v_head_dim=v_head_dim,
             max_seq_len=max_seq_len,
-            prediction_type=prediction_type
+            prediction_type=prediction_type,
+            norm=norm
         ).to(device)
     
     def predict(self, features: torch.Tensor) -> torch.Tensor:
@@ -591,7 +687,8 @@ class StockPricePredictor:
             "feature_dim": self.feature_dim,
             "hidden_size": self.hidden_size,
             "max_seq_len": self.max_seq_len,
-            "prediction_type": self.prediction_type
+            "prediction_type": self.prediction_type,
+            "norm": self.norm
         }, path)
         
     @classmethod
@@ -614,7 +711,8 @@ class StockPricePredictor:
             hidden_size=checkpoint["hidden_size"],
             max_seq_len=checkpoint["max_seq_len"],
             prediction_type=checkpoint["prediction_type"],
-            device=device
+            device=device,
+            norm=checkpoint.get("norm", "rmsnorm")  # 兼容旧版本
         )
         
         # 加载模型权重
@@ -636,25 +734,29 @@ if __name__ == "__main__":
     # 创建测试输入
     inputs = torch.randn(batch_size, seq_len, feature_dim)
     
-    # 测试Transformer模型
-    logger.info(f"测试股票Transformer模型...")
-    model = StockTransformerModel(
-        vocab_size=feature_dim,
-        hidden_size=hidden_size,
-        num_layers=num_layers,
-        num_heads=num_heads,
-        max_seq_len=seq_len,
-        prediction_type="regression"
-    )
+    # 测试不同归一化方法的Transformer模型
+    normalization_methods = ["rmsnorm", "batch_norm", "dynamic_tanh"]
     
-    outputs = model(inputs)
+    for norm_method in normalization_methods:
+        logger.info(f"\n测试股票Transformer模型 (归一化方法: {norm_method})...")
+        model = StockTransformerModel(
+            vocab_size=feature_dim,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            max_seq_len=seq_len,
+            prediction_type="regression",
+            norm=norm_method
+        )
+        
+        outputs = model(inputs)
+        
+        logger.info(f"输入形状: {inputs.shape}")
+        logger.info(f"预测形状: {outputs['prediction'].shape}")
+        logger.info(f"最后隐藏状态形状: {outputs['last_hidden_state'].shape}")
     
-    logger.info(f"输入形状: {inputs.shape}")
-    logger.info(f"预测形状: {outputs['prediction'].shape}")
-    logger.info(f"最后隐藏状态形状: {outputs['last_hidden_state'].shape}")
-    
-    # 测试预测器
-    logger.info(f"测试股票价格预测器...")
+    # 测试预测器 (默认使用 RMSNorm)
+    logger.info(f"\n测试股票价格预测器...")
     predictor = StockPricePredictor(
         feature_dim=feature_dim,
         hidden_size=hidden_size,

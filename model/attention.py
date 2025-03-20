@@ -187,11 +187,11 @@ class MultiLatentAttention(nn.Module):
         # 应用旋转位置编码到k_rope，使用安全的position_ids
         #freqs_cis: [max_seq_len,qk_rope_head_dim / 2]
         # position_ids: [batch_size,seq_len]
-        #unsqueeze(2): Add 2 new dimensions at index 2
-        # k_rope: [batch_size,seq_len,1,qk_rope_head_dim]
+        #unsqueeze(2): 添加头维度，使k_rope形状变为[batch_size,seq_len,1,qk_rope_head_dim]
+        # apply_rotary_emb返回: [batch_size,seq_len,1,qk_rope_head_dim]
         k_rope = apply_rotary_emb(k_rope.unsqueeze(2), freqs_cis, position_ids)
         
-        # k_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim] -> [batch_size,seq_len,qk_rope_head_dim]
+        # 移除添加的头维度，将k_rope形状恢复为[batch_size,seq_len,qk_rope_head_dim]
         k_rope = k_rope.squeeze(2)
         
         # 计算KV的第二次投影
@@ -211,10 +211,9 @@ class MultiLatentAttention(nn.Module):
         
         # 合并K的两部分
         # k_nope: [batch_size,seq_len,num_heads,qk_nope_head_dim]
-        # k_rope: [batch_size,seq_len,num_heads,qk_rope_head_dim]
-        # expand(-1, -1, self.num_heads, -1): 扩展维度，确保k_rope的维度与k_nope的维度一致
+        # k_rope: [batch_size,seq_len,qk_rope_head_dim]
         # k: [batch_size,seq_len,num_heads,qk_nope_head_dim + qk_rope_head_dim]; qk_head_dim = qk_nope_head_dim + qk_rope_head_dim
-        k = torch.cat([k_nope, k_rope.expand(-1, -1, self.num_heads, -1)], dim=-1)
+        k = torch.cat([k_nope, k_rope.unsqueeze(2).expand(-1, -1, self.num_heads, -1)], dim=-1)
         
         # 处理过去的键值对（用于解码器）
         if past_key_value is not None:

@@ -190,6 +190,8 @@ def train_model(args: ModelArgs):
         logger.info("模型权重已加载")
     else:
         # 创建新模型
+        # 使用args.norm设置归一化类型
+        logger.info(f"使用归一化类型: {args.norm}")
         model = StockTransformerModel(
             vocab_size=feature_dim,
             hidden_size=args.hidden_size,
@@ -212,8 +214,9 @@ def train_model(args: ModelArgs):
             max_batch_size=args.max_batch_size,
             rope_scaling_factor=args.rope_scaling_factor,
             rope_theta=args.rope_theta,
-            prediction_type=args.prediction_type
-        )
+            prediction_type=args.prediction_type,
+            norm=args.norm  # 添加归一化参数
+        ).to(device)
         logger.info("创建了新模型")
         
     # 设置训练配置

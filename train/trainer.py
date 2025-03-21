@@ -49,7 +49,12 @@ class StockModelTrainer:
         """
         # 设置设备
         if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            if torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            else:
+                self.device = torch.device("cpu")
         else:
             self.device = device
             
@@ -77,8 +82,8 @@ class StockModelTrainer:
             
         # 创建保存目录
         os.makedirs(self.config["save_dir"], exist_ok=True)
-        
         # 设置优化器
+        
         if optimizer is None:
             self.optimizer = optim.AdamW(
                 self.model.parameters(),
@@ -109,8 +114,14 @@ class StockModelTrainer:
         else:
             self.loss_fn = loss_fn
             
-        # 设置混合精度训练
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.config["mixed_precision"])
+        # 设置混合精度训练 - MPS和CPU不支持混合精度训练
+        self.use_mixed_precision = self.config["mixed_precision"] and torch.cuda.is_available()
+        if self.use_mixed_precision:
+            self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+        else:
+            self.scaler = None
+            if self.config["mixed_precision"]:
+                logger.warning("混合精度训练仅支持CUDA设备，已自动禁用")
         
         # 训练记录
         self.train_losses = []
@@ -134,28 +145,55 @@ class StockModelTrainer:
             self.optimizer.zero_grad()
             
             # 混合精度前向传播
-            with torch.cuda.amp.autocast(enabled=self.config["mixed_precision"]):
+            if self.use_mixed_precision:
+                with torch.cuda.amp.autocast():
+                    outputs = self.model(inputs)
+                    predictions = outputs["prediction"]
+                    loss = self.loss_fn(predictions, targets)
+            else:
                 outputs = self.model(inputs)
                 predictions = outputs["prediction"]
                 loss = self.loss_fn(predictions, targets)
-                
-            # 混合精度反向传播
-            self.scaler.scale(loss).backward()
             
-            # 梯度裁剪
-            if self.config["clip_grad_norm"] > 0:
-                self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), 
-                    self.config["clip_grad_norm"]
-                )
-                
-            # 优化器步进
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-            
-            # 更新进度条
+            # 保存loss值以供后续使用
             batch_loss = loss.item()
+                
+            # 反向传播
+            if self.scaler:
+                # 使用混合精度时的反向传播
+                self.scaler.scale(loss).backward()
+                
+                # 梯度裁剪
+                if self.config["clip_grad_norm"] > 0:
+                    self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), 
+                        self.config["clip_grad_norm"]
+                    )
+                    
+                # 优化器步进
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                # 普通反向传播
+                loss.backward()
+                
+                # 梯度裁剪
+                if self.config["clip_grad_norm"] > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), 
+                        self.config["clip_grad_norm"]
+                    )
+                
+                # 优化器步进
+                self.optimizer.step()
+            
+            # 立即释放计算图，确保不会重复使用
+            del loss, outputs, predictions
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()  # 只在CUDA可用时清理GPU内存
+            
+            # 更新进度条和累计损失
             epoch_loss += batch_loss
             progress_bar.set_postfix({"loss": f"{batch_loss:.4f}"})
             

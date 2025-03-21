@@ -261,6 +261,12 @@ class TransformerBlock(nn.Module):
             num_shared_experts=1,
             shared_intermediate_size=moe_intermediate_size * 4
         )
+
+        logger.info(f"5. moe.router.router.weight的权重shape: {self.moe.router.router.weight.shape}")
+        logger.info(f"6. moe.experts[0].mlp.w1.weight的权重shape: {self.moe.experts[0].mlp.w1.weight.shape}")
+        logger.info(f"6. moe.experts[0].mlp.w2.weight的权重shape: {self.moe.experts[0].mlp.w2.weight.shape}")
+        logger.info(f"7. moe.experts[0].mlp.w3.weight的权重shape: {self.moe.experts[0].mlp.w3.weight.shape}")
+        #logger.info(f"8. moe.shared_experts.mlp.w1.weight的权重shape: {self.moe.shared_experts.mlp.w1.weight.shape}")
         
         # Dropout层
         self.dropout = nn.Dropout(hidden_dropout)
@@ -488,6 +494,7 @@ class StockTransformerModel(nn.Module):
         else:
             # 分类: 预测上涨/下跌/不变
             self.head = nn.Linear(hidden_size, 3)
+        logger.info(f"8. head的权重shape: {self.head.weight.shape}")
         
         # 初始化子模块所有的模型权重__init_weights()
         self.apply(self._init_weights)

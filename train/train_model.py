@@ -229,14 +229,34 @@ def train_model(args: ModelArgs):
         "save_dir": args.save_dir,
         "model_name": args.model_name,
         "log_interval": args.log_interval,
-        "mixed_precision": not args.disable_mixed_precision
+        "mixed_precision": not args.disable_mixed_precision,
+        "retain_graph": False,  # 不保留计算图，确保每次反向传播后都清理
+        "debug_mode": False     # 调试模式，打印更多信息
     }
+    
+    # 创建优化器
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=args.learning_rate,
+        weight_decay=args.weight_decay
+    )
+    
+    # 创建学习率调度器
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=2,
+        verbose=True
+    )
     
     # 创建训练器
     trainer = StockModelTrainer(
         model=model,
         train_dataloader=dataloaders['train'],
         val_dataloader=dataloaders['val'],
+        optimizer=optimizer,
+        scheduler=scheduler,
         device=device,
         config=train_config
     )

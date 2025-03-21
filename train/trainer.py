@@ -47,6 +47,14 @@ class StockModelTrainer:
             device: 设备
             config: 配置字典
         """
+        # 检查模型是否为None
+        if model is None:
+            raise ValueError("模型不能为None")
+            
+        # 检查数据加载器是否为None
+        if train_dataloader is None or val_dataloader is None:
+            raise ValueError("训练数据加载器和验证数据加载器不能为None")
+            
         # 设置设备
         if device is None:
             if torch.cuda.is_available():
@@ -57,6 +65,8 @@ class StockModelTrainer:
                 self.device = torch.device("cpu")
         else:
             self.device = device
+            
+        logger.info(f"使用设备: {self.device}")
             
         # 设置模型
         self.model = model.to(self.device)
@@ -82,19 +92,26 @@ class StockModelTrainer:
             
         # 创建保存目录
         os.makedirs(self.config["save_dir"], exist_ok=True)
-        # 设置优化器
         
+        # 设置优化器
         if optimizer is None:
+            logger.info(f"创建优化器 AdamW (lr={self.config['learning_rate']}, weight_decay={self.config['weight_decay']})")
             self.optimizer = optim.AdamW(
                 self.model.parameters(),
                 lr=self.config["learning_rate"],
                 weight_decay=self.config["weight_decay"]
             )
         else:
+            logger.info("使用提供的优化器")
             self.optimizer = optimizer
+            
+        # 验证优化器是否正确设置
+        if not isinstance(self.optimizer, torch.optim.Optimizer):
+            raise TypeError(f"优化器类型错误: {type(self.optimizer)}")
             
         # 设置学习率调度器
         if scheduler is None:
+            logger.info("创建学习率调度器 ReduceLROnPlateau")
             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer,
                 mode='min',
@@ -103,15 +120,23 @@ class StockModelTrainer:
                 verbose=True
             )
         else:
+            logger.info("使用提供的学习率调度器")
             self.scheduler = scheduler
+            
+        # 验证学习率调度器是否正确设置
+        if not isinstance(self.scheduler, torch.optim.lr_scheduler._LRScheduler) and not isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            raise TypeError(f"学习率调度器类型错误: {type(self.scheduler)}")
             
         # 设置损失函数
         if loss_fn is None:
             if model.prediction_type == "regression":
+                logger.info("使用MSE损失函数")
                 self.loss_fn = nn.MSELoss()
             else:
+                logger.info("使用交叉熵损失函数")
                 self.loss_fn = nn.CrossEntropyLoss()
         else:
+            logger.info("使用提供的损失函数")
             self.loss_fn = loss_fn
             
         # 设置混合精度训练 - MPS和CPU不支持混合精度训练
@@ -332,11 +357,12 @@ class StockModelTrainer:
             self.learning_rates.append(current_lr)
             
             # 更新学习率调度器
-            if isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
-                self.scheduler.step(val_loss)
-            else:
-                self.scheduler.step()
-                
+            if self.scheduler is not None:
+                if isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
+                    self.scheduler.step(val_loss)
+                else:
+                    self.scheduler.step()
+                    
             # 记录指标
             metrics_str = ", ".join([f"{k}: {v:.4f}" for k, v in metrics.items()])
             logger.info(
@@ -391,48 +417,70 @@ class StockModelTrainer:
             "epochs_trained": self.epochs_trained
         }
     
-    def save_model(self, filename: str = None):
-        """保存模型"""
-        if filename is None:
-            filename = f"{self.config['model_name']}.pt"
-            
-        path = os.path.join(self.config["save_dir"], filename)
+    def save_model(self, path: str):
+        """
+        保存模型和训练状态
         
-        # 保存模型、优化器和训练状态
-        torch.save({
+        参数:
+            path: 保存路径
+        """
+        # 创建保存字典
+        save_dict = {
             "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler else None,
+            "optimizer_state_dict": self.optimizer.state_dict() if self.optimizer else None,
             "train_losses": self.train_losses,
             "val_losses": self.val_losses,
             "learning_rates": self.learning_rates,
             "epochs_trained": self.epochs_trained,
-            "config": self.config,
-            "prediction_type": self.model.prediction_type,
             "vocab_size": self.model.vocab_size,
-            "hidden_size": self.model.hidden_size
-        }, path)
+            "hidden_size": self.model.hidden_size,
+            "prediction_type": self.model.prediction_type
+        }
         
-        logger.info(f"模型已保存到 {path}")
+        # 如果调度器存在且是可序列化的，保存其状态
+        if self.scheduler and hasattr(self.scheduler, 'state_dict'):
+            save_dict["scheduler_state_dict"] = self.scheduler.state_dict()
         
+        # 保存到文件
+        save_path = os.path.join(self.config["save_dir"], path)
+        torch.save(save_dict, save_path)
+        logger.info(f"模型已保存到 {save_path}")
+    
     def load_model(self, path: str):
-        """加载模型"""
-        logger.info(f"从 {path} 加载模型")
+        """
+        加载模型和训练状态
         
+        参数:
+            path: 模型路径
+        """
+        # 加载检查点
         checkpoint = torch.load(path, map_location=self.device)
         
-        # 加载模型权重
+        # 加载模型状态
         self.model.load_state_dict(checkpoint["model_state_dict"])
         
-        # 加载优化器状态
-        if "optimizer_state_dict" in checkpoint:
-            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            
-        # 加载调度器状态
-        if "scheduler_state_dict" in checkpoint and self.scheduler and checkpoint["scheduler_state_dict"]:
-            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            
-        # 加载训练历史
+        # 加载优化器状态（如果存在）
+        if "optimizer_state_dict" in checkpoint and self.optimizer:
+            try:
+                self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                # 将优化器状态移动到正确的设备
+                for state in self.optimizer.state.values():
+                    for k, v in state.items():
+                        if isinstance(v, torch.Tensor):
+                            state[k] = v.to(self.device)
+                logger.info("优化器状态已加载")
+            except Exception as e:
+                logger.warning(f"加载优化器状态失败: {e}")
+        
+        # 加载调度器状态（如果存在）
+        if "scheduler_state_dict" in checkpoint and self.scheduler and hasattr(self.scheduler, 'load_state_dict'):
+            try:
+                self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+                logger.info("学习率调度器状态已加载")
+            except Exception as e:
+                logger.warning(f"加载学习率调度器状态失败: {e}")
+        
+        # 加载训练记录
         if "train_losses" in checkpoint:
             self.train_losses = checkpoint["train_losses"]
         if "val_losses" in checkpoint:
@@ -442,11 +490,7 @@ class StockModelTrainer:
         if "epochs_trained" in checkpoint:
             self.epochs_trained = checkpoint["epochs_trained"]
             
-        # 更新配置
-        if "config" in checkpoint:
-            self.config.update(checkpoint["config"])
-            
-        logger.info(f"模型加载完成，已训练 {self.epochs_trained} 轮")
+        logger.info(f"模型已从 {path} 加载，之前已训练 {self.epochs_trained} 轮")
         
     def plot_training_curves(self):
         """绘制训练曲线"""

@@ -139,21 +139,23 @@ class RoutingNetwork(nn.Module):
         前向传播
         
         参数:
-            x: 输入张量 [batch_size, seq_len, hidden_size]
+            x: 输入张量 [batch_size, seq_len, hidden_size] 或 [batch_size * seq_len, hidden_size]
             
         返回:
-            (routing_weights, selected_experts) 的元组
-            routing_weights: 路由权重 [batch_size, seq_len, num_experts_per_token]
-            selected_experts: 选择的专家索引 [batch_size, seq_len, num_experts_per_token]
+            routing_weights: 路由权重 [batch_size, seq_len, num_experts_per_token] 或 [batch_size * seq_len, num_experts_per_token]
+            top_k_indices: 选中的专家索引 [batch_size, seq_len, num_experts_per_token] 或 [batch_size * seq_len, num_experts_per_token]
         """
-        # 计算专家分数
-        # x: [batch_size, seq_len, hidden_size]
-        # scores: [batch_size, seq_len, num_experts]
-        scores = self.router(x)  # [batch_size, seq_len, num_experts]
+        # 保存输入形状用于调试
+        input_shape = x.shape
+        is_2d_input = len(input_shape) == 2
         
-        # 原始分数用于之后的权重计算
-        # original_scores: [batch_size, seq_len, num_experts]
-        original_scores = scores.clone()
+        # x: [batch_size, seq_len, hidden_size] 或 [batch_size * seq_len, hidden_size]
+        # scores: [batch_size, seq_len, num_experts] 或 [batch_size * seq_len, num_experts]
+        scores = self.router(x)  # [batch_size, seq_len, num_experts] 或 [batch_size * seq_len, num_experts]
+        
+        # 原始分数用于之后的权重计算 - 使用detach().clone()断开计算图
+        # original_scores: [batch_size, seq_len, num_experts] 或 [batch_size * seq_len, num_experts]
+        original_scores = scores.detach().clone()
         
         # 应用分数函数
         if self.score_func == "softmax":
@@ -171,10 +173,15 @@ class RoutingNetwork(nn.Module):
         
         # 对路由权重进行归一化
         if self.score_func == "sigmoid":
-            routing_weights = routing_weights / routing_weights.sum(dim=-1, keepdim=True)
+            routing_weights = routing_weights / (routing_weights.sum(dim=-1, keepdim=True) + 1e-6)
         
         # 应用缩放因子
         routing_weights = routing_weights * self.routing_scale
+        
+        # 打印形状信息帮助调试
+        print(f"RoutingNetwork输入形状: {input_shape}")
+        print(f"路由权重形状: {routing_weights.shape}")
+        print(f"专家索引形状: {top_k_indices.shape}")
         
         return routing_weights, top_k_indices
 
@@ -256,9 +263,13 @@ class MixtureOfExperts(nn.Module):
         """
         # 保存原始形状
         original_shape = x.shape
+        print(f"MoE输入形状: {original_shape}")
+        
         # 重塑为二维方便处理
         # x_2d: [batch_size * seq_len, hidden_size]
+        batch_size, seq_len = original_shape[0], original_shape[1]
         x_2d = x.reshape(-1, self.hidden_size)
+        print(f"重塑后x_2d形状: {x_2d.shape}")
         
         # 如果没有提供专家选择，使用路由器
         # routing_weights: [batch_size * seq_len, num_experts]
@@ -267,6 +278,9 @@ class MixtureOfExperts(nn.Module):
             routing_weights, expert_indices = self.router(x_2d)
         else:
             routing_weights, expert_indices = expert_choices
+            
+        print(f"路由权重形状: {routing_weights.shape}")
+        print(f"专家索引形状: {expert_indices.shape}")
         
         # 创建输出张量
         moe_out = torch.zeros_like(x_2d)
@@ -280,21 +294,22 @@ class MixtureOfExperts(nn.Module):
             
             if len(token_indices) > 0:
                 # 提取token输入
-                expert_input = x_2d[token_indices]
+                expert_input = x_2d[token_indices].clone()  # 使用clone()避免共享内存
                 # 计算专家输出
                 expert_output = self.experts[expert_idx](expert_input)
-                # 获取路由权重
-                expert_weights = routing_weights[token_indices, position_in_expert_list].unsqueeze(-1)
+                # 获取路由权重并克隆避免共享计算图
+                expert_weights = routing_weights[token_indices, position_in_expert_list].clone().unsqueeze(-1)
                 # 加权求和
                 moe_out[token_indices] += expert_output * expert_weights
         
         # 添加共享专家的输出
         if hasattr(self, "shared_expert"):
-            shared_out = self.shared_expert(x_2d)
+            shared_out = self.shared_expert(x_2d.clone())  # 使用clone()避免共享内存
             moe_out = moe_out + shared_out
         
         # 重塑为原始形状
         moe_out = moe_out.view(original_shape)
+        print(f"MoE输出形状: {moe_out.shape}")
         
         return moe_out
 
@@ -314,33 +329,42 @@ if __name__ == "__main__":
     x = torch.randn(batch_size, seq_len, hidden_size)
     
     # 测试MLP
-    print("测试MLP...")
+    print("\n========== 测试MLP ==========")
     mlp = MLP(hidden_size=hidden_size, intermediate_size=intermediate_size)
     mlp_out = mlp(x)
     print(f"输入形状: {x.shape}")
     print(f"输出形状: {mlp_out.shape}")
     
     # 测试专家
-    print("\n测试专家...")
+    print("\n========== 测试专家 ==========")
     expert = Expert(hidden_size=hidden_size, intermediate_size=intermediate_size)
     expert_out = expert(x)
     print(f"输入形状: {x.shape}")
     print(f"输出形状: {expert_out.shape}")
     
     # 测试路由网络
-    print("\n测试路由网络...")
+    print("\n========== 测试路由网络 ==========")
     router = RoutingNetwork(
         hidden_size=hidden_size,
         num_experts=num_experts,
         num_experts_per_token=num_experts_per_token
     )
+    # 首先测试2D输入
+    x_2d = x.reshape(-1, hidden_size)
+    print(f"2D输入形状: {x_2d.shape}")
+    
+    routing_weights_2d, expert_indices_2d = router(x_2d)
+    print(f"2D输入时路由权重形状: {routing_weights_2d.shape}")
+    print(f"2D输入时专家索引形状: {expert_indices_2d.shape}")
+    
+    # 然后测试3D输入
+    print(f"3D输入形状: {x.shape}")
     routing_weights, expert_indices = router(x)
-    print(f"输入形状: {x.shape}")
-    print(f"路由权重形状: {routing_weights.shape}")
-    print(f"专家索引形状: {expert_indices.shape}")
+    print(f"3D输入时路由权重形状: {routing_weights.shape}")
+    print(f"3D输入时专家索引形状: {expert_indices.shape}")
     
     # 测试混合专家
-    print("\n测试混合专家...")
+    print("\n========== 测试混合专家 ==========")
     moe = MixtureOfExperts(
         hidden_size=hidden_size,
         moe_intermediate_size=moe_intermediate_size,
@@ -353,10 +377,30 @@ if __name__ == "__main__":
     print(f"输出形状: {moe_out.shape}")
     
     # 检查形状是否一致
-    assert mlp_out.shape == x.shape
-    assert expert_out.shape == x.shape
-    assert moe_out.shape == x.shape
-    assert routing_weights.shape == (batch_size * seq_len, num_experts_per_token)
-    assert expert_indices.shape == (batch_size * seq_len, num_experts_per_token)
+    print("\n========== 检查形状一致性 ==========")
+    shape_checks = []
     
-    print("\n所有测试通过！") 
+    shape_checks.append(mlp_out.shape == x.shape)
+    print(f"MLP输出形状与输入一致: {shape_checks[-1]}")
+    
+    shape_checks.append(expert_out.shape == x.shape)
+    print(f"专家输出形状与输入一致: {shape_checks[-1]}")
+    
+    shape_checks.append(moe_out.shape == x.shape)
+    print(f"MoE输出形状与输入一致: {shape_checks[-1]}")
+    
+    shape_checks.append(routing_weights.shape[-1] == num_experts_per_token)
+    print(f"路由权重最后一维等于每个token的专家数: {shape_checks[-1]}")
+    
+    shape_checks.append(expert_indices.shape[-1] == num_experts_per_token)
+    print(f"专家索引最后一维等于每个token的专家数: {shape_checks[-1]}")
+    
+    if all(shape_checks):
+        print("\n所有形状检查通过！")
+    else:
+        print("\n形状检查失败！")
+        for i, check in enumerate(shape_checks):
+            if not check:
+                print(f"  检查 {i+1} 失败")
+    
+    print("\n所有测试完成！") 

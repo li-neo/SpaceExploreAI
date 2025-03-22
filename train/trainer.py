@@ -89,8 +89,8 @@ class StockModelTrainer:
             "mixed_precision": True,
             # 学习率调度器配置
             "scheduler_factor": 0.5,        # 学习率衰减因子
-            "scheduler_patience": 2,        # 调度器耐心值
-            "scheduler_threshold": 1e-4,    # 改进阈值
+            "scheduler_patience": 1,        # 调度器耐心值
+            "scheduler_threshold": 0.1,    # 改进阈值
             "scheduler_cooldown": 0,        # 冷却期
             "scheduler_min_lr": 1e-6,       # 最小学习率
             "scheduler_eps": 1e-8,          # 精度
@@ -496,14 +496,16 @@ class StockModelTrainer:
                 
                 # 检测损失停滞情况
                 is_stagnating = abs(loss_rate) < stagnation_threshold
-                
-                # 连续上升趋势（损失增加）
-                if all(recent_losses[i] < recent_losses[i+1] for i in range(len(recent_losses)-1)):
-                    # 损失连续增加，快速降低学习率
+                # 将原来的条件修改得更严格，至少需要明显的连续增长
+                recent_losses = val_loss_history[-trend_window_size:]
+                avg_loss_increase = sum(recent_losses[i+1] - recent_losses[i] for i in range(len(recent_losses)-1)) / (len(recent_losses)-1)
+  
+                # 只有当平均增长率大于某个阈值时才降低学习率
+                if all(recent_losses[i] < recent_losses[i+1] for i in range(len(recent_losses)-1)) and avg_loss_increase > 0.005:
+                    # 损失连续增加且平均增长幅度较大
                     for param_group in self.optimizer.param_groups:
-                        param_group['lr'] *= self.config["scheduler_factor"] * 0.8  # 比正常更快地降低
-                    logger.info(f"检测到连续损失增加，快速降低学习率: {pre_update_lr:.6f} -> {self.optimizer.param_groups[0]['lr']:.6f}")
-                
+                        param_group['lr'] *= self.config["scheduler_factor"] * 0.8
+                    logger.info(f"检测到显著连续损失增加，快速降低学习率: {pre_update_lr:.6f} -> {self.optimizer.param_groups[0]['lr']:.6f}")
                 # 损失停滞
                 elif is_stagnating:
                     # 如果损失变化很小，尝试临时增加学习率以跳出局部最小值

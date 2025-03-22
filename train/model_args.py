@@ -140,17 +140,17 @@ class ModelArgs():
 
     # 添加学习率调整相关参数
     # 基础学习率调度器配置
-    learning_rate: float = 1e-4  # 学习率,控制参数更新的步长大小
+    learning_rate: float = 8e-5  # 学习率,控制参数更新的步长大小
     scheduler_factor: float = 0.5  # 学习率衰减因子
     scheduler_patience: int = 2  # 调度器耐心值，多少个轮次验证损失不改善才降低学习率
     scheduler_threshold: float = 1e-4  # 验证损失改善的阈值，低于此值视为无改善
     scheduler_cooldown: int = 0  # 学习率降低后的冷却期轮次数
-    scheduler_min_lr: float = 1e-6  # 最小学习率
+    scheduler_min_lr: float = 1e-5 # 最小学习率
     scheduler_eps: float = 1e-8
     scheduler_verbose: bool = True
     
     # 动态学习率调整配置
-    use_dynamic_lr: bool = False  # 是否使用动态学习率调整
+    use_dynamic_lr: bool = True  # 是否使用动态学习率调整
     trend_window_size: int = 3  # 趋势窗口大小，用于动态学习率调整
     lr_boost_factor: float = 2.0  # 学习率临时提升因子，用于跳出局部最小值
     stagnation_threshold: float = 0.01  # 损失停滞检测阈值，低于此值视为损失停滞
@@ -162,7 +162,7 @@ class ModelArgs():
     
     # 批次级学习率调整
     batch_lr_update: bool = False  # 是否在批次级别调整学习率
-    batch_lr_update_steps: int = 100  # 每多少批次调整一次学习率
+    batch_lr_update_steps: int = 3  # 每多少批次调整一次学习率
     batch_lr_gamma: float = 0.995  # 批次级学习率衰减因子
     
     # 验证和早停配置

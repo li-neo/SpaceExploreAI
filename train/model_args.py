@@ -96,7 +96,7 @@ class ModelArgs():
     # mla
     # 混合注意力
     num_heads: int = 4  # 注意力头数量,多头注意力机制中的头数
-    attention_type: str = "mixed"  # 注意力类型,可选mixed,stardard,gqa
+    attention_type: str = "gqa"  # 注意力类型,可选mixed,stardard,gqa
     attention_dropout: float = 0.1  # 注意力Dropout比率,注意力机制中的丢弃率
     hidden_dropout: float = 0.1  # 隐藏层Dropout比率,前馈网络中的丢弃率
     attention_scale_factor: float = 1.0  # 注意力缩放因子,用于调整注意力机制的权重
@@ -123,8 +123,7 @@ class ModelArgs():
     dtype: Literal["float32", "float16", "bfloat16"] = "float16"  # 模型权重的数据类型,float32为标准精度,float16和bfloat16为低精度
     
     # 训练相关参数
-    learning_rate: float = 8e-5  # 学习率,控制参数更新的步长大小
-    weight_decay: float = 0.01  # 权重衰减,L2正则化系数,用于防止过拟合
+    weight_decay: float = 0.02  # 权重衰减,L2正则化系数,用于防止过拟合
     clip_grad_norm: float = 1.0  # 梯度裁剪范数,限制梯度的最大范数,防止梯度爆炸
     num_epochs: int = 16  # 训练轮次,完整遍历训练集的次数
     patience: int = 3  # 早停耐心,验证集性能不再提升的轮次数,超过此值则停止训练
@@ -135,5 +134,37 @@ class ModelArgs():
     disable_mixed_precision: bool = True  # 是否禁用混合精度训练,True表示禁用,在Mac上通常需要禁用
     resume_from: str = None  # 从检查点恢复训练,指定检查点文件路径
     seed: int = 42  # 随机种子,确保实验可重复性的随机数种子
+    loss_fn_str: str = "cross_entropy"  # 损失函数,可选"cross_entropy"(交叉熵)或"mse"(均方误差)
 
     prediction_type: str = "regression"  # 预测类型,"regression"(回归)或"classification"(分类)
+
+    # 添加学习率调整相关参数
+    # 基础学习率调度器配置
+    learning_rate: float = 1e-4  # 学习率,控制参数更新的步长大小
+    scheduler_factor: float = 0.5  # 学习率衰减因子
+    scheduler_patience: int = 2  # 调度器耐心值，多少个轮次验证损失不改善才降低学习率
+    scheduler_threshold: float = 1e-4  # 验证损失改善的阈值，低于此值视为无改善
+    scheduler_cooldown: int = 0  # 学习率降低后的冷却期轮次数
+    scheduler_min_lr: float = 1e-6  # 最小学习率
+    scheduler_eps: float = 1e-8
+    scheduler_verbose: bool = True
+    
+    # 动态学习率调整配置
+    use_dynamic_lr: bool = False  # 是否使用动态学习率调整
+    trend_window_size: int = 3  # 趋势窗口大小，用于动态学习率调整
+    lr_boost_factor: float = 2.0  # 学习率临时提升因子，用于跳出局部最小值
+    stagnation_threshold: float = 0.01  # 损失停滞检测阈值，低于此值视为损失停滞
+    
+    # 周期性学习率调整
+    use_cyclic_lr: bool = False  # 是否使用周期性学习率调整
+    cyclic_lr_base_size: int = 5  # 周期基础大小（轮次）
+    cyclic_lr_max_factor: float = 10.0  # 周期最大学习率因子
+    
+    # 批次级学习率调整
+    batch_lr_update: bool = False  # 是否在批次级别调整学习率
+    batch_lr_update_steps: int = 100  # 每多少批次调整一次学习率
+    batch_lr_gamma: float = 0.995  # 批次级学习率衰减因子
+    
+    # 验证和早停配置
+    validate_every_n_batches: int = 1  # 每多少批次验证一次模型，0表示禁用
+    early_stopping_min_improvement: float = 0.1  # 早停最小改进阈值，验证损失改进低于此值视为无改善

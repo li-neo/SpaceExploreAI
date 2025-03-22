@@ -179,9 +179,9 @@ class RoutingNetwork(nn.Module):
         routing_weights = routing_weights * self.routing_scale
         
         # 打印形状信息帮助调试
-        print(f"RoutingNetwork输入形状: {input_shape}")
-        print(f"路由权重形状: {routing_weights.shape}")
-        print(f"专家索引形状: {top_k_indices.shape}")
+        # print(f"RoutingNetwork输入形状: {input_shape}")
+        # print(f"路由权重形状: {routing_weights.shape}")
+        # print(f"专家索引形状: {top_k_indices.shape}")
         
         return routing_weights, top_k_indices
 
@@ -263,13 +263,11 @@ class MixtureOfExperts(nn.Module):
         """
         # 保存原始形状
         original_shape = x.shape
-        print(f"MoE输入形状: {original_shape}")
         
         # 重塑为二维方便处理
         # x_2d: [batch_size * seq_len, hidden_size]
         batch_size, seq_len = original_shape[0], original_shape[1]
         x_2d = x.reshape(-1, self.hidden_size)
-        print(f"重塑后x_2d形状: {x_2d.shape}")
         
         # 如果没有提供专家选择，使用路由器
         # routing_weights: [batch_size * seq_len, num_experts]
@@ -278,9 +276,6 @@ class MixtureOfExperts(nn.Module):
             routing_weights, expert_indices = self.router(x_2d)
         else:
             routing_weights, expert_indices = expert_choices
-            
-        print(f"路由权重形状: {routing_weights.shape}")
-        print(f"专家索引形状: {expert_indices.shape}")
         
         # 创建输出张量
         moe_out = torch.zeros_like(x_2d)
@@ -308,9 +303,7 @@ class MixtureOfExperts(nn.Module):
             moe_out = moe_out + shared_out
         
         # 重塑为原始形状
-        moe_out = moe_out.view(original_shape)
-        print(f"MoE输出形状: {moe_out.shape}")
-        
+        moe_out = moe_out.view(original_shape)        
         return moe_out
 
 

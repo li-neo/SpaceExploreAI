@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
-
+torch.autograd.set_detect_anomaly(True)
 from model.transformer import StockTransformerModel, StockPricePredictor
 from data.data_processor import StockDataProcessor, StockDataset, create_dataloaders
 from train.model_args import ModelArgs
@@ -218,38 +218,102 @@ def train_model(args: ModelArgs):
             norm=args.norm  # 添加归一化参数
         ).to(device)
         logger.info("创建了新模型")
-        
-    # 设置训练配置
+    # 设置配置
     train_config = {
-        "learning_rate": args.learning_rate,
-        "weight_decay": args.weight_decay,
-        "clip_grad_norm": args.clip_grad_norm,
-        "num_epochs": args.num_epochs,
-        "patience": args.patience,
-        "save_dir": args.save_dir,
-        "model_name": args.model_name,
-        "log_interval": args.log_interval,
-        "mixed_precision": not args.disable_mixed_precision,
-        "retain_graph": False,  # 不保留计算图，确保每次反向传播后都清理
-        "debug_mode": False     # 调试模式，打印更多信息
+        "learning_rate": args.learning_rate, # 学习率, 推荐值: 8e-5
+        "weight_decay": args.weight_decay, # 权重衰减, 推荐值: 0.02
+        "clip_grad_norm": args.clip_grad_norm, # 梯度裁剪范数, 推荐值: 1.0
+        "num_epochs": args.num_epochs, # 训练轮次, 推荐值: 16
+        "patience": args.patience, # 早停耐心, 推荐值: 3
+        "save_dir": args.save_dir, # 模型保存目录, 推荐值: "models"
+        "model_name": args.model_name, # 模型名称, 推荐值: "SpaceExploreAI"
+        "log_interval": args.log_interval, # 日志记录间隔, 推荐值: 5
+        "mixed_precision": not args.disable_mixed_precision, # 混合精度训练, 推荐值: True
+
+        # 学习率调度器配置
+        "scheduler_type": "epoch",        # 学习率调度器类型, 推荐值: "epoch"
+        "scheduler_factor": args.scheduler_factor,        # 学习率衰减因子, 推荐值: 0.5
+        "scheduler_patience": args.scheduler_patience,        # 调度器耐心值, 推荐值: 2
+        "scheduler_threshold": args.scheduler_threshold,    # 改进阈值, 推荐值: 1e-4
+        "scheduler_cooldown": args.scheduler_cooldown,        # 冷却期, 推荐值: 0
+        "scheduler_min_lr": args.scheduler_min_lr,       # 最小学习率, 推荐值: 1e-6
+        "scheduler_eps": args.scheduler_eps,           # 精度, 推荐值: 1e-8
+        "scheduler_verbose": args.scheduler_verbose,      # 是否输出日志, 推荐值: True
+        
+        # 动态学习率调整配置
+        "use_dynamic_lr": args.use_dynamic_lr,        # 是否使用动态学习率调整, 推荐值: False
+        "trend_window_size": args.trend_window_size,         # 趋势窗口大小, 推荐值: 3
+        "lr_boost_factor": args.lr_boost_factor,         # 学习率临时提升因子, 推荐值: 2.0
+        "stagnation_threshold": args.stagnation_threshold,   # 损失停滞检测阈值, 推荐值: 0.01
+        
+        # 周期性学习率调整
+        "use_cyclic_lr": args.use_cyclic_lr,         # 是否使用周期性学习率, 推荐值: False
+        "cyclic_lr_base_size": args.cyclic_lr_base_size,       # 周期基础大小（轮次）, 推荐值: 5
+        "cyclic_lr_max_factor": args.cyclic_lr_max_factor,   # 周期最大学习率因子, 推荐值: 10.0
+        
+        # 批次级学习率调整
+        "batch_lr_update": args.batch_lr_update,               # 是否在批次级别调整学习率, 推荐值: False
+        "batch_lr_update_steps": args.batch_lr_update_steps,   # 每多少批次调整一次学习率, 推荐值: 100
+        "batch_lr_gamma": args.batch_lr_gamma              # 批次级学习率衰减因子, 推荐值: 0.995
+
     }
-    
+        
     # 创建优化器
+    logger.info(f"创建优化器 AdamW (lr={train_config['learning_rate']}, weight_decay={train_config['weight_decay']})")
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=args.learning_rate,
-        weight_decay=args.weight_decay
-    )
+        lr=train_config["learning_rate"],
+        weight_decay=train_config["weight_decay"])
     
     # 创建学习率调度器
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='min',
-        factor=0.5,
-        patience=2,
-        verbose=True
+        factor=args.scheduler_factor,
+        patience=args.scheduler_patience,
+        threshold=args.scheduler_threshold,
+        cooldown=args.scheduler_cooldown,
+        min_lr=args.scheduler_min_lr
     )
+
+    # 根据配置决定使用哪种学习率调度器
+    if train_config["use_cyclic_lr"]:
+        logger.info("创建周期性学习率调度器 CyclicLR")
+        # 计算周期步数
+        steps_per_epoch = len(dataloaders['train'])
+        step_size_up = train_config["cyclic_lr_base_size"] * steps_per_epoch // 2
+        
+        scheduler = torch.optim.lr_scheduler.CyclicLR(
+            optimizer,
+            base_lr=train_config["learning_rate"] / 10,  # 基础学习率
+            max_lr=train_config["learning_rate"] * train_config["cyclic_lr_max_factor"],  # 最大学习率
+            step_size_up=step_size_up,
+            mode='triangular2',
+            cycle_momentum=False
+        )
+        train_config["scheduler_type"] = "batch"  # 批次级调度器
+    else:
+        logger.info("创建学习率调度器 ReduceLROnPlateau")
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=train_config["scheduler_factor"],
+            patience=train_config["scheduler_patience"],
+            threshold=train_config["scheduler_threshold"],
+            threshold_mode='rel',
+            cooldown=train_config["scheduler_cooldown"],
+            min_lr=train_config["scheduler_min_lr"],
+            eps=train_config["scheduler_eps"],
+            verbose=train_config["scheduler_verbose"]
+        )
+        train_config["scheduler_type"] = "epoch"  # 轮次级调度器
+
+            
+        # 验证学习率调度器是否正确设置
+        if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            raise TypeError(f"学习率调度器类型错误: {type(scheduler)}")
     
+    # 训练配置
     # 创建训练器
     trainer = StockModelTrainer(
         model=model,
@@ -258,7 +322,8 @@ def train_model(args: ModelArgs):
         optimizer=optimizer,
         scheduler=scheduler,
         device=device,
-        config=train_config
+        config=train_config,
+        loss_fn_str=args.loss_fn_str
     )
     
     # 如果恢复训练，加载训练状态

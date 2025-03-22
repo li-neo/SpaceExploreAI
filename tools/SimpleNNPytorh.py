@@ -34,7 +34,7 @@ criterion = nn.BCELoss()
 # 扩展优化器： 带动量的SGD， 加速收敛并减少震荡
 #            自适应优化器： 如Adam：结合动量和自适应学习率，适合复杂非凸优化
 optimizer = optim.SGD(NN_model.parameters(), lr=0.01, momentum=0.9)
-num_epochs = 10000
+num_epochs = 100000
 for epoch in range(num_epochs):
     # 前向传播
     output = NN_model(x)

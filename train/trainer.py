@@ -149,7 +149,8 @@ class StockModelTrainer:
                 eps=self.config['scheduler_eps'],
                 verbose=self.config['scheduler_verbose']
             )
-        
+        else:
+            self.scheduler = scheduler
             
         # 设置损失函数  TODO：regression回归任务要设置为MSELoss
 

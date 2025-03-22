@@ -170,7 +170,7 @@ class StockDataProcessor:
         result_df = df.copy()
         
         if feature_groups is None:
-            feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
+            feature_groups = ['time', 'lag', 'return', 'volatility', 'volume']
             
         logger.info(f"要添加的特征组: {feature_groups}")
             
@@ -665,7 +665,8 @@ class StockDataProcessor:
             feature_columns = [col for col in data_dict['train'].columns 
                              if col not in exclude_cols and pd.api.types.is_numeric_dtype(data_dict['train'][col])]
             
-            logger.info(f"自动选择了 {len(feature_columns)} 个特征列")
+            # 输出feature_columns的列名
+            logger.info(f"自动选择了 {len(feature_columns)} 个特征列: {feature_columns}")
             
         result = {}
         
@@ -939,7 +940,7 @@ if __name__ == "__main__":
     import yfinance as yf
     
     # 获取股票数据
-    ticker = "AAPL"
+    ticker = "QQQ"
     start_date = "2020-01-01"
     end_date = datetime.now().strftime("%Y-%m-%d")
     
@@ -976,7 +977,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 添加特征
-    processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return'])
+    processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return', 'volatility', 'volume'])
     if processed_data.empty:
         logger.error("添加特征后数据为空")
         sys.exit(1)

@@ -31,6 +31,8 @@ class Conv1dBlock(nn.Module):
         super(Conv1dBlock, self).__init__()
         
         # Conv1d 卷积操作,主要功能是特征转换，从原始数据中提取有用的模式和表示
+        # new_length = ⌊(length + 2padding - dilation(kernel_size-1) - 1)/stride + 1⌋
+        # new_length = (32 + 2 * 1 - 2) / 1 = 32
         self.conv = nn.Conv1d(
             in_channels, 
             out_channels, 
@@ -61,15 +63,15 @@ class MSBlock(nn.Module):
     多尺度块 (Multi-Scale Block)，严格按照LLM-PS论文实现
     
     参数:
-        in_channels (int): 输入通道数
-        out_channels (int): 输出通道数
+        channels (int): 通道数（输入和输出相同）
         num_branches (int): 分支数量，默认为4
+        seq_len (int): 序列长度，用于时间模式组装
     """
-    def __init__(self, in_channels, out_channels, num_branches=4):
+    def __init__(self, channels, num_branches=4, seq_len=96):
         super(MSBlock, self).__init__()
         
         # 1×1 卷积用于初始特征转换
-        self.initial_conv = nn.Conv1d(in_channels, out_channels, kernel_size=1)
+        self.initial_conv = nn.Conv1d(channels, channels, kernel_size=1)
         
         # 通道划分数量
         self.num_branches = num_branches
@@ -77,13 +79,24 @@ class MSBlock(nn.Module):
         # 创建B个3×3卷积分支
         self.branch_convs = nn.ModuleList()
         for _ in range(num_branches):
+            # Conv1dBlock 卷积块： 每个分支都是一个Conv1dBlock实例，这是一个封装了一维卷积、批归一化和ReLU激活的自定义模块
+            # 每个分支的输出通道数为 out_channels // num_branches；例如，如果out_channels=128且num_branches=4，则每个分支的输入和输出通道数都是32
+            # 每个分支的卷积核大小为3，填充为1
+            # Channel-wise Division（通道划分）：将输入特征在通道维度上划分为num_branches份，
+            # 每个分支的特征形状为 [batch_size, out_channels // num_branches, seq_len]
+            # 递归调用时，分支都会接受前一个分支的输出作为额外输入
+            # in & out 都是 out_channels // num_branches，递归的时候可以直接相加，最后在out_channels维度上拼接,完成特征融合
             self.branch_convs.append(
-                Conv1dBlock(out_channels // num_branches, out_channels // num_branches, 
+                Conv1dBlock(channels // num_branches, channels // num_branches, 
                            kernel_size=3, padding=1)
             )
         
         # 1×1 卷积用于融合特征
-        self.fusion_conv = nn.Conv1d(out_channels, out_channels, kernel_size=1)
+        self.fusion_conv = nn.Conv1d(channels, channels, kernel_size=1)
+        
+        # 添加时间模式解耦与组装模块
+        self.pattern_decoupling = TemporalPatternDecoupling(wavelet='db4', level=1)
+        self.pattern_assembling = TemporalPatternAssembling(channels, seq_len)
         
     def channel_division(self, x):
         """
@@ -108,6 +121,9 @@ class MSBlock(nn.Module):
         
     def forward(self, x):
         """前向传播"""
+        # 保存输入用于残差连接
+        identity = x
+        
         # 初始1×1卷积特征转换
         features = self.initial_conv(x)
         
@@ -135,8 +151,17 @@ class MSBlock(nn.Module):
         # 添加残差连接
         concat_features = concat_features + features
         
+        # 为拼接后的特征进行时间模式解耦
+        long_term_pattern, short_term_pattern = self.pattern_decoupling(concat_features)
+        
+        # 时间模式组装，增强时间特征
+        assembled_features = self.pattern_assembling(long_term_pattern, short_term_pattern)
+        
         # 使用1×1卷积融合特征
-        output = self.fusion_conv(concat_features)
+        output = self.fusion_conv(assembled_features)
+        
+        # 添加全局残差连接（输入和输出通道数相同，可以直接相加）
+        output = output + identity
         
         return output
 
@@ -286,29 +311,34 @@ class MSCNN(nn.Module):
                  seq_len=96, output_dim=512):
         super(MSCNN, self).__init__()
         
-        # 初始特征提取
+        # 初始特征提取，从输入通道数转换到基础通道数
         self.init_conv = Conv1dBlock(in_channels, base_channels, kernel_size=3, padding=1)
         
-        # 时间模式解耦与组装模块
-        self.pattern_decoupling = TemporalPatternDecoupling(wavelet='db4', level=1)
-        self.pattern_assembling = TemporalPatternAssembling(base_channels, seq_len)
-        
-        # 堆叠的多尺度块
-        self.ms_blocks = nn.ModuleList()
+        # 堆叠的多尺度块和通道调整层
+        self.layers = nn.ModuleList()
         current_channels = base_channels
+        current_seq_len = seq_len
         
         for i in range(ms_blocks):
-            # 第i个多尺度块的输出通道数
-            out_channels = base_channels * (2 ** i)
+            # 如果需要增加通道数，先添加通道调整层
+            if i > 0:
+                next_channels = base_channels * (2 ** i)
+                self.layers.append(
+                    nn.Sequential(
+                        nn.Conv1d(current_channels, next_channels, kernel_size=1),
+                        nn.BatchNorm1d(next_channels),
+                        nn.ReLU(inplace=True)
+                    )
+                )
+                current_channels = next_channels
             
-            self.ms_blocks.append(
-                MSBlock(current_channels, out_channels, num_branches)
-            )
-            current_channels = out_channels
+            # 添加MSBlock，保持输入输出通道数相同
+            self.layers.append(MSBlock(current_channels, num_branches, current_seq_len))
             
             # 在每个多尺度块后添加下采样操作（除了最后一个块）
             if i < ms_blocks - 1:
-                self.ms_blocks.append(nn.MaxPool1d(kernel_size=2, stride=2))
+                self.layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
+                current_seq_len = current_seq_len // 2
                 
         # 全局特征提取
         self.global_pool = nn.AdaptiveAvgPool1d(1)
@@ -333,15 +363,9 @@ class MSCNN(nn.Module):
         # 初始特征提取
         x = self.init_conv(x)
         
-        # 为每个特征进行时间模式解耦
-        long_term_pattern, short_term_pattern = self.pattern_decoupling(x)
-        
-        # 时间模式组装，增强时间特征
-        x = self.pattern_assembling(long_term_pattern, short_term_pattern)
-        
-        # 通过堆叠的多尺度块提取多尺度特征
-        for block in self.ms_blocks:
-            x = block(x)
+        # 通过所有层处理
+        for layer in self.layers:
+            x = layer(x)
         
         # 全局池化
         x = self.global_pool(x)
@@ -369,7 +393,7 @@ class MSCNNWithAttention(nn.Module):
                  seq_len=96, output_dim=512, num_heads=8):
         super(MSCNNWithAttention, self).__init__()
         
-        # 基础MSCNN
+        # 基础MSCNN，使用更新后的结构，其中每个MSBlock内部具有时间模式解耦和组装功能
         self.mscnn = MSCNN(
             in_channels=in_channels,
             base_channels=base_channels,
@@ -423,9 +447,13 @@ class MSCNNWithAttention(nn.Module):
 
 if __name__ == "__main__":
     # 简单测试
-    batch_size = 16
+    batch_size = 16  # 批量大小
     channels = 64  # 输入变量数
     seq_len = 96  # 序列长度
+    base_channels = 128  # 基础通道数
+    ms_blocks = 3  # 多尺度块数量
+    num_branches = 4  # 每个多尺度块中的分支数量
+    output_dim = 64  # 输出特征维度
     
     # 创建随机输入张量
     x = torch.randn(batch_size, channels, seq_len)
@@ -433,11 +461,11 @@ if __name__ == "__main__":
     # 测试MSCNN
     model = MSCNN(
         in_channels=channels,
-        base_channels=128,
-        ms_blocks=3, 
-        num_branches=4,
+        base_channels=base_channels,
+        ms_blocks=ms_blocks, 
+        num_branches=num_branches,
         seq_len=seq_len,
-        output_dim=512
+        output_dim=output_dim
     )
     output = model(x)
     logger.info(f"MSCNN 输出形状: {output.shape}")
@@ -445,11 +473,11 @@ if __name__ == "__main__":
     # 测试带注意力的MSCNN
     model_with_attn = MSCNNWithAttention(
         in_channels=channels,
-        base_channels=128,
-        ms_blocks=3, 
-        num_branches=4,
+        base_channels=base_channels,
+        ms_blocks=ms_blocks, 
+        num_branches=num_branches,
         seq_len=seq_len,
-        output_dim=512,
+        output_dim=output_dim,
         num_heads=8
     )
     output_attn = model_with_attn(x)

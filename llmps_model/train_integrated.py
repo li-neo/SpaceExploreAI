@@ -22,11 +22,6 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-# 添加项目根目录到路径
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-
 from log.logger import get_logger
 
 # 创建logger

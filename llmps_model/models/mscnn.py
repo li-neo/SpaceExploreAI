@@ -10,8 +10,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import pywt
-import os
-import sys
 from log.logger import get_logger
 
 # 创建logger
@@ -32,6 +30,7 @@ class Conv1dBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, use_bn=True):
         super(Conv1dBlock, self).__init__()
         
+        # Conv1d 卷积操作,主要功能是特征转换，从原始数据中提取有用的模式和表示
         self.conv = nn.Conv1d(
             in_channels, 
             out_channels, 
@@ -48,6 +47,8 @@ class Conv1dBlock(nn.Module):
         
     def forward(self, x):
         """前向传播"""
+        # 输入数据形状: [batch_size,in_channels, seq_len]
+        # 卷积操作后输出数据形状: [batch_size, out_channels, seq_len]
         x = self.conv(x)
         if self.use_bn:
             x = self.bn(x)
@@ -57,38 +58,85 @@ class Conv1dBlock(nn.Module):
 
 class MSBlock(nn.Module):
     """
-    多尺度块 (Multi-Scale Block)
-    包含不同尺度的一维卷积操作，用于捕获不同尺度的时间特征
+    多尺度块 (Multi-Scale Block)，严格按照LLM-PS论文实现
     
     参数:
         in_channels (int): 输入通道数
         out_channels (int): 输出通道数
-        scales (list): 不同尺度的卷积核大小列表
+        num_branches (int): 分支数量，默认为4
     """
-    def __init__(self, in_channels, out_channels, scales=[3, 5, 7, 9]):
+    def __init__(self, in_channels, out_channels, num_branches=4):
         super(MSBlock, self).__init__()
         
-        # 为每个尺度创建一个卷积分支
-        self.branches = nn.ModuleList()
-        for scale in scales:
-            padding = scale // 2  # 保持输出长度不变
-            self.branches.append(
-                Conv1dBlock(in_channels, out_channels, kernel_size=scale, padding=padding)
+        # 1×1 卷积用于初始特征转换
+        self.initial_conv = nn.Conv1d(in_channels, out_channels, kernel_size=1)
+        
+        # 通道划分数量
+        self.num_branches = num_branches
+        
+        # 创建B个3×3卷积分支
+        self.branch_convs = nn.ModuleList()
+        for _ in range(num_branches):
+            self.branch_convs.append(
+                Conv1dBlock(out_channels // num_branches, out_channels // num_branches, 
+                           kernel_size=3, padding=1)
             )
         
-        # 融合不同尺度的特征
-        self.fusion = Conv1dBlock(out_channels * len(scales), out_channels, kernel_size=1, padding=0)
+        # 1×1 卷积用于融合特征
+        self.fusion_conv = nn.Conv1d(out_channels, out_channels, kernel_size=1)
+        
+    def channel_division(self, x):
+        """
+        将特征在通道维度上划分为num_branches份
+        
+        参数:
+            x (tensor): 输入特征 [batch_size, channels, seq_len]
+            
+        返回:
+            list: 划分后的特征列表
+        """
+        batch_size, channels, seq_len = x.shape
+        branch_channels = channels // self.num_branches
+        
+        divided_features = []
+        for i in range(self.num_branches):
+            start_idx = i * branch_channels
+            end_idx = (i + 1) * branch_channels
+            divided_features.append(x[:, start_idx:end_idx, :])
+            
+        return divided_features
         
     def forward(self, x):
         """前向传播"""
-        # 获取每个分支的输出
-        branch_outputs = [branch(x) for branch in self.branches]
+        # 初始1×1卷积特征转换
+        features = self.initial_conv(x)
         
-        # 沿通道维度拼接
+        # 将特征在通道维度上划分为num_branches份
+        divided_features = self.channel_division(features)
+        
+        # 递归地应用卷积块并与前一个分支的输出相加
+        branch_outputs = []
+        prev_output = None
+        
+        for i, (branch_feature, branch_conv) in enumerate(zip(divided_features, self.branch_convs)):
+            if i == 0:
+                # 第一个分支直接应用卷积
+                branch_output = branch_conv(branch_feature)
+            else:
+                # 其他分支将前一个分支的输出与当前特征相加后应用卷积
+                branch_output = branch_conv(branch_feature + prev_output)
+            
+            branch_outputs.append(branch_output)
+            prev_output = branch_output
+            
+        # 拼接所有分支的输出
         concat_features = torch.cat(branch_outputs, dim=1)
         
-        # 融合特征
-        output = self.fusion(concat_features)
+        # 添加残差连接
+        concat_features = concat_features + features
+        
+        # 使用1×1卷积融合特征
+        output = self.fusion_conv(concat_features)
         
         return output
 
@@ -99,7 +147,7 @@ class TemporalPatternDecoupling(nn.Module):
     使用小波变换将时间序列解耦为高频（短期波动）和低频（长期趋势）组件
     
     参数:
-        wavelet (str): 小波类型
+        wavelet (str): 小波类型，默认使用'db4'（DauBechies 4）
         level (int): 分解级别
     """
     def __init__(self, wavelet='db4', level=1):
@@ -112,10 +160,10 @@ class TemporalPatternDecoupling(nn.Module):
         前向传播
         
         参数:
-            x (tensor): 输入时间序列 [batch_size, channels, seq_len]
+            x (tensor): 输入特征 [batch_size, channels, seq_len]
             
         返回:
-            tuple: (低频分量, 高频分量)
+            tuple: (长期模式-低频分量, 短期模式-高频分量)
         """
         batch_size, channels, seq_len = x.shape
         device = x.device
@@ -124,8 +172,8 @@ class TemporalPatternDecoupling(nn.Module):
         x_np = x.detach().cpu().numpy()
         
         # 初始化结果
-        low_freq = np.zeros_like(x_np)
-        high_freq = np.zeros_like(x_np)
+        low_freq = np.zeros_like(x_np)  # 长期模式
+        high_freq = np.zeros_like(x_np)  # 短期模式
         
         # 对每个样本和通道分别进行小波变换
         for b in range(batch_size):
@@ -134,15 +182,15 @@ class TemporalPatternDecoupling(nn.Module):
                 coeffs = pywt.wavedec(x_np[b, c], self.wavelet, level=self.level)
                 
                 # 分离低频和高频分量
-                approx_coeffs = coeffs[0]
-                detail_coeffs = coeffs[1:]
+                approx_coeffs = coeffs[0]  # 近似系数（低频）
+                detail_coeffs = coeffs[1:]  # 细节系数（高频）
                 
-                # 重构低频分量 (使用逆小波变换)
+                # 重构低频分量（长期模式）
                 # 保留近似系数，将细节系数设为0
                 low_coeffs = [approx_coeffs] + [None] * len(detail_coeffs)
                 low_freq[b, c] = pywt.waverec(low_coeffs, self.wavelet)[:seq_len]
                 
-                # 重构高频分量 (使用逆小波变换)
+                # 重构高频分量（短期模式）
                 # 将近似系数设为0，保留细节系数
                 high_coeffs = [np.zeros_like(approx_coeffs)]
                 for i, detail in enumerate(detail_coeffs):
@@ -156,8 +204,8 @@ class TemporalPatternDecoupling(nn.Module):
                     high_freq[b, c] += residual
         
         # 转回PyTorch张量并移到原始设备
-        low_freq_tensor = torch.from_numpy(low_freq).to(device)
-        high_freq_tensor = torch.from_numpy(high_freq).to(device)
+        low_freq_tensor = torch.from_numpy(low_freq).to(device)  # 长期模式
+        high_freq_tensor = torch.from_numpy(high_freq).to(device)  # 短期模式
         
         return low_freq_tensor, high_freq_tensor
 
@@ -174,18 +222,18 @@ class TemporalPatternAssembling(nn.Module):
     def __init__(self, channels, seq_len):
         super(TemporalPatternAssembling, self).__init__()
         
-        # 全局到局部映射
+        # 全局到局部映射（用于增强短期模式）
         self.global_to_local = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
             nn.ReLU(inplace=True)
         )
         
-        # 局部到全局映射
+        # 局部到全局映射（用于增强长期模式）
         self.local_to_global = nn.Sequential(
-            nn.AdaptiveAvgPool1d(1),
+            nn.AdaptiveAvgPool1d(1),  # 全局池化获取全局上下文
             nn.Conv1d(channels, channels, kernel_size=1),
-            nn.Sigmoid()
+            nn.Sigmoid()  # 生成注意力权重
         )
         
         # 特征融合
@@ -195,80 +243,80 @@ class TemporalPatternAssembling(nn.Module):
             nn.ReLU(inplace=True)
         )
         
-    def forward(self, low_freq, high_freq):
+    def forward(self, long_term_pattern, short_term_pattern):
         """
         前向传播
         
         参数:
-            low_freq (tensor): 低频分量 [batch_size, channels, seq_len]
-            high_freq (tensor): 高频分量 [batch_size, channels, seq_len]
+            long_term_pattern (tensor): 长期模式（低频分量）[batch_size, channels, seq_len]
+            short_term_pattern (tensor): 短期模式（高频分量）[batch_size, channels, seq_len]
             
         返回:
             tensor: 增强的特征 [batch_size, channels, seq_len]
         """
-        # 全局到局部交互
-        global_context = self.global_to_local(low_freq)
-        enhanced_high_freq = high_freq * global_context
+        # 全局到局部交互：使用长期模式增强短期模式
+        global_context = self.global_to_local(long_term_pattern)
+        enhanced_short_term = short_term_pattern * global_context
         
-        # 局部到全局交互
-        local_context = self.local_to_global(high_freq)
-        enhanced_low_freq = low_freq * local_context
+        # 局部到全局交互：使用短期模式增强长期模式
+        local_context = self.local_to_global(short_term_pattern)
+        enhanced_long_term = long_term_pattern * local_context
         
         # 特征融合
-        concat_features = torch.cat([enhanced_low_freq, enhanced_high_freq], dim=1)
-        fused_features = self.fusion(concat_features)
+        concat_features = torch.cat([enhanced_long_term, enhanced_short_term], dim=1)
+        assembled_features = self.fusion(concat_features)
         
-        return fused_features
+        return assembled_features
 
 
 class MSCNN(nn.Module):
     """
     多尺度卷积神经网络 (Multi-Scale Convolutional Neural Network)
-    用于从时间序列中提取多尺度特征，区分短期波动和长期趋势
+    用于从时间序列中提取多尺度特征，捕获短期波动和长期趋势
     
     参数:
         in_channels (int): 输入通道数（变量数）
         base_channels (int): 基础通道数
         ms_blocks (int): 多尺度块的数量
-        scales (list): 每个多尺度块使用的卷积核大小列表
+        num_branches (int): 每个多尺度块中的分支数量
         seq_len (int): 输入序列长度
         output_dim (int): 输出特征维度
-        use_decoupling (bool): 是否使用时间模式解耦
     """
-    def __init__(self, in_channels=1, base_channels=64, ms_blocks=3, scales=[3, 5, 7, 9], 
-                 seq_len=96, output_dim=512, use_decoupling=True):
+    def __init__(self, in_channels=64, base_channels=128, ms_blocks=3, num_branches=4, 
+                 seq_len=96, output_dim=512):
         super(MSCNN, self).__init__()
-        
-        self.use_decoupling = use_decoupling
         
         # 初始特征提取
         self.init_conv = Conv1dBlock(in_channels, base_channels, kernel_size=3, padding=1)
         
-        # 时间模式解耦
-        if use_decoupling:
-            self.pattern_decoupling = TemporalPatternDecoupling(wavelet='db4', level=1)
-            self.pattern_assembling = TemporalPatternAssembling(base_channels, seq_len)
+        # 时间模式解耦与组装模块
+        self.pattern_decoupling = TemporalPatternDecoupling(wavelet='db4', level=1)
+        self.pattern_assembling = TemporalPatternAssembling(base_channels, seq_len)
         
-        # 多尺度块
-        self.ms_layers = nn.ModuleList()
-        curr_channels = base_channels
+        # 堆叠的多尺度块
+        self.ms_blocks = nn.ModuleList()
+        current_channels = base_channels
         
         for i in range(ms_blocks):
+            # 第i个多尺度块的输出通道数
             out_channels = base_channels * (2 ** i)
-            self.ms_layers.append(MSBlock(curr_channels, out_channels, scales))
-            curr_channels = out_channels
             
-            # 在每个多尺度块后加入下采样操作
+            self.ms_blocks.append(
+                MSBlock(current_channels, out_channels, num_branches)
+            )
+            current_channels = out_channels
+            
+            # 在每个多尺度块后添加下采样操作（除了最后一个块）
             if i < ms_blocks - 1:
-                self.ms_layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
-        
+                self.ms_blocks.append(nn.MaxPool1d(kernel_size=2, stride=2))
+                
         # 全局特征提取
         self.global_pool = nn.AdaptiveAvgPool1d(1)
         
         # 投影到指定维度
         self.projection = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(curr_channels, output_dim),
+            nn.Linear(current_channels, output_dim),
             nn.ReLU(inplace=True)
         )
         
@@ -280,19 +328,20 @@ class MSCNN(nn.Module):
             x (tensor): 输入时间序列 [batch_size, channels, seq_len]
             
         返回:
-            tensor: 提取的特征 [batch_size, output_dim]
+            tensor: 提取的多尺度特征 [batch_size, output_dim]
         """
         # 初始特征提取
         x = self.init_conv(x)
         
-        # 时间模式解耦和组装
-        if self.use_decoupling:
-            low_freq, high_freq = self.pattern_decoupling(x)
-            x = self.pattern_assembling(low_freq, high_freq)
+        # 为每个特征进行时间模式解耦
+        long_term_pattern, short_term_pattern = self.pattern_decoupling(x)
         
-        # 多尺度特征提取
-        for layer in self.ms_layers:
-            x = layer(x)
+        # 时间模式组装，增强时间特征
+        x = self.pattern_assembling(long_term_pattern, short_term_pattern)
+        
+        # 通过堆叠的多尺度块提取多尺度特征
+        for block in self.ms_blocks:
+            x = block(x)
         
         # 全局池化
         x = self.global_pool(x)
@@ -311,13 +360,13 @@ class MSCNNWithAttention(nn.Module):
         in_channels (int): 输入通道数
         base_channels (int): 基础通道数
         ms_blocks (int): 多尺度块的数量
-        scales (list): 每个多尺度块使用的卷积核大小列表
+        num_branches (int): 每个多尺度块中的分支数量
         seq_len (int): 输入序列长度
         output_dim (int): 输出特征维度
-        use_decoupling (bool): 是否使用时间模式解耦
+        num_heads (int): 注意力头数量
     """
-    def __init__(self, in_channels=1, base_channels=64, ms_blocks=3, scales=[3, 5, 7, 9], 
-                 seq_len=96, output_dim=512, use_decoupling=True):
+    def __init__(self, in_channels=64, base_channels=128, ms_blocks=3, num_branches=4, 
+                 seq_len=96, output_dim=512, num_heads=8):
         super(MSCNNWithAttention, self).__init__()
         
         # 基础MSCNN
@@ -325,16 +374,15 @@ class MSCNNWithAttention(nn.Module):
             in_channels=in_channels,
             base_channels=base_channels,
             ms_blocks=ms_blocks,
-            scales=scales,
+            num_branches=num_branches,
             seq_len=seq_len,
-            output_dim=output_dim,
-            use_decoupling=use_decoupling
+            output_dim=output_dim
         )
         
         # 自注意力机制
         self.self_attention = nn.MultiheadAttention(
             embed_dim=output_dim,
-            num_heads=8,
+            num_heads=num_heads,
             batch_first=True
         )
         
@@ -375,19 +423,34 @@ class MSCNNWithAttention(nn.Module):
 
 if __name__ == "__main__":
     # 简单测试
-    batch_size = 4
-    channels = 1  # 单变量时间序列
+    batch_size = 16
+    channels = 64  # 输入变量数
     seq_len = 96  # 序列长度
     
     # 创建随机输入张量
     x = torch.randn(batch_size, channels, seq_len)
     
     # 测试MSCNN
-    model = MSCNN(in_channels=channels, seq_len=seq_len)
+    model = MSCNN(
+        in_channels=channels,
+        base_channels=128,
+        ms_blocks=3, 
+        num_branches=4,
+        seq_len=seq_len,
+        output_dim=512
+    )
     output = model(x)
     logger.info(f"MSCNN 输出形状: {output.shape}")
     
     # 测试带注意力的MSCNN
-    model_with_attn = MSCNNWithAttention(in_channels=channels, seq_len=seq_len)
+    model_with_attn = MSCNNWithAttention(
+        in_channels=channels,
+        base_channels=128,
+        ms_blocks=3, 
+        num_branches=4,
+        seq_len=seq_len,
+        output_dim=512,
+        num_heads=8
+    )
     output_attn = model_with_attn(x)
     logger.info(f"MSCNNWithAttention 输出形状: {output_attn.shape}") 

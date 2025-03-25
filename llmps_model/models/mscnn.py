@@ -68,230 +68,247 @@ class MSBlock(nn.Module):
         seq_len (int): 序列长度，用于时间模式组装
     """
     def __init__(self, channels, num_branches=4, seq_len=96):
-        super(MSBlock, self).__init__()
+        """
+        初始化MSBlock
         
-        # 1×1 卷积用于初始特征转换
-        self.initial_conv = nn.Conv1d(channels, channels, kernel_size=1)
+        参数:
+            channels (int): 通道数（输入和输出相同）
+            num_branches (int): 分支数量，默认为4
+            seq_len (int): 序列长度
+        """
+        super(MSBlock, self).__init__()
         
         # 通道划分数量
         self.num_branches = num_branches
         
-        # 创建B个3×3卷积分支
+        # 每个分支的通道数
+        self.branch_channels = channels // num_branches
+        
+        # 论文公式(1)(2)中的初始1×1卷积，用于特征转换
+        self.initial_conv = nn.Conv1d(channels, channels, kernel_size=1)
+        
+        # 创建每个分支的卷积层，使用不同大小的卷积核以获取多尺度特征
+        # 根据论文Fig.3，使用不同尺寸的卷积核来获取不同大小的感受野
         self.branch_convs = nn.ModuleList()
-        for _ in range(num_branches):
-            # Conv1dBlock 卷积块： 每个分支都是一个Conv1dBlock实例，这是一个封装了一维卷积、批归一化和ReLU激活的自定义模块
-            # 每个分支的输出通道数为 out_channels // num_branches；例如，如果out_channels=128且num_branches=4，则每个分支的输入和输出通道数都是32
-            # 每个分支的卷积核大小为3，填充为1
-            # Channel-wise Division（通道划分）：将输入特征在通道维度上划分为num_branches份，
-            # 每个分支的特征形状为 [batch_size, out_channels // num_branches, seq_len]
-            # 递归调用时，分支都会接受前一个分支的输出作为额外输入
-            # in & out 都是 out_channels // num_branches，递归的时候可以直接相加，最后在out_channels维度上拼接,完成特征融合
+        kernel_sizes = [3, 5, 7, 9]  # 对应不同的感受野大小
+        for i in range(num_branches):
+            # 确保kernel_size不超过可用的预设值
+            k_size = kernel_sizes[i] if i < len(kernel_sizes) else kernel_sizes[-1]
+            # 保持输出序列长度不变，调整padding
+            padding = k_size // 2
             self.branch_convs.append(
-                Conv1dBlock(channels // num_branches, channels // num_branches, 
-                           kernel_size=3, padding=1)
+                Conv1dBlock(self.branch_channels, self.branch_channels, kernel_size=k_size, padding=padding)
             )
         
-        # 1×1 卷积用于融合特征
+        # 论文公式(3)中的时间模式解耦，使用小波变换提取短期和长期模式
+        # 根据序列长度自动计算合适的小波分解级别
+        max_level = pywt.dwt_max_level(data_len=seq_len, filter_len=pywt.Wavelet('db4').dec_len)
+        self.pattern_decoupling = TemporalPatternDecoupling(
+            wavelet='db4', 
+            level=min(2, max_level),  # 使用适当的分解级别
+            mode='symmetric'
+        )
+        
+        # 用于合并短期和长期模式的1×1卷积，对应论文公式(6)
+        self.pattern_fusion = nn.Conv1d(self.branch_channels * 2, self.branch_channels, kernel_size=1)
+        
+        # 论文公式(2)中的最终融合卷积
         self.fusion_conv = nn.Conv1d(channels, channels, kernel_size=1)
         
-        # 添加时间模式解耦与组装模块
-        self.pattern_decoupling = TemporalPatternDecoupling(wavelet='db4', level=1)
-        self.pattern_assembling = TemporalPatternAssembling(channels, seq_len)
-        
-    def channel_division(self, x):
+    def forward(self, x):
         """
-        将特征在通道维度上划分为num_branches份
+        前向传播 - 实现论文中的多尺度特征提取和模式组装过程
         
         参数:
             x (tensor): 输入特征 [batch_size, channels, seq_len]
             
         返回:
-            list: 划分后的特征列表
+            tensor: 处理后的特征 [batch_size, channels, seq_len]
         """
-        batch_size, channels, seq_len = x.shape
-        branch_channels = channels // self.num_branches
-        
-        divided_features = []
-        for i in range(self.num_branches):
-            start_idx = i * branch_channels
-            end_idx = (i + 1) * branch_channels
-            divided_features.append(x[:, start_idx:end_idx, :])
-            
-        return divided_features
-        
-    def forward(self, x):
-        """前向传播"""
-        # 保存输入用于残差连接
+        # 保存输入用于残差连接 (论文公式(2)中的F_in)
         identity = x
         
-        # 初始1×1卷积特征转换
-        features = self.initial_conv(x)
+        # 初始特征转换
+        x = self.initial_conv(x)
         
-        # 将特征在通道维度上划分为num_branches份
-        divided_features = self.channel_division(features)
+        # 沿通道维度拆分输入到各个分支
+        branch_inputs = torch.split(x, self.branch_channels, dim=1)
         
-        # 递归地应用卷积块并与前一个分支的输出相加
-        branch_outputs = []
-        prev_output = None
+        # 存储每个分支的短期和长期模式
+        branch_outputs = []  # 存储每个分支的原始输出 (论文中的F̄_b)
+        branch_short_terms = []  # 存储每个分支的短期模式 P_S^b
+        branch_long_terms = []   # 存储每个分支的长期模式 P_L^b
         
-        for i, (branch_feature, branch_conv) in enumerate(zip(divided_features, self.branch_convs)):
-            if i == 0:
-                # 第一个分支直接应用卷积
-                branch_output = branch_conv(branch_feature)
-            else:
-                # 其他分支将前一个分支的输出与当前特征相加后应用卷积
-                branch_output = branch_conv(branch_feature + prev_output)
-            
+        # 对每个分支应用不同尺度的卷积，并解耦为短期和长期模式
+        for i, branch_input in enumerate(branch_inputs):
+            # 应用分支卷积，获取多尺度特征 F̄_b (对应Fig.3)
+            branch_output = self.branch_convs[i](branch_input)
             branch_outputs.append(branch_output)
-            prev_output = branch_output
             
-        # 拼接所有分支的输出
-        concat_features = torch.cat(branch_outputs, dim=1)
+            # 使用小波变换进行时间模式解耦，获取短期模式P_S^b和长期模式P_L^b
+            # 对应论文公式(3): W^b_low, {W^b_high_i}^w_i=1 = WT(F̄_b, w)
+            short_term, long_term = self.pattern_decoupling(branch_output)
+            branch_short_terms.append(short_term)
+            branch_long_terms.append(long_term)
         
-        # 最后添加残差连接
-        # concat_features = concat_features + features
+        # 论文中的时间模式组装过程 (对应公式(4)(5)和Fig.3)
         
-        # 为拼接后的特征进行时间模式解耦
-        long_term_pattern, short_term_pattern = self.pattern_decoupling(concat_features)
+        # 短期模式增强: 从低层到高层 (local-to-global)
+        # 对应论文公式(4): 从第二个分支开始，累积前一个分支的短期模式
+        # For b=2→B do: P_S^b = P_S^b + P_S^(b-1)
+        for b in range(1, self.num_branches):
+            branch_short_terms[b] = branch_short_terms[b] + branch_short_terms[b-1]
         
-        # 时间模式组装，增强时间特征
-        assembled_features = self.pattern_assembling(long_term_pattern, short_term_pattern)
+        # 长期模式增强: 从高层到低层 (global-to-local)
+        # 对应论文公式(5): 从倒数第二个分支开始，累积后一个分支的长期模式
+        # For b=(B-1)→1 do: P_L^b = P_L^b + P_L^(b+1)
+        for b in range(self.num_branches-2, -1, -1):
+            branch_long_terms[b] = branch_long_terms[b] + branch_long_terms[b+1]
         
-        # 使用1×1卷积融合特征
-        output = self.fusion_conv(assembled_features)
+        # 对应论文公式(6): 合并每个分支的增强模式
+        enhanced_branches = []
+        for b in range(self.num_branches):
+            # 连接短期和长期模式 [batch_size, branch_channels*2, seq_len]
+            combined = torch.cat([branch_short_terms[b], branch_long_terms[b]], dim=1)
+            # 使用1×1卷积融合模式 [batch_size, branch_channels, seq_len]
+            fused = self.pattern_fusion(combined)
+            enhanced_branches.append(fused)
         
-        # 添加全局残差连接（输入和输出通道数相同，可以直接相加）
-        output = output + identity
+        # 沿通道维度拼接所有分支 (论文Fig.3中的Concat操作)
+        out = torch.cat(enhanced_branches, dim=1)
         
-        return output
+        # 应用最终融合卷积并添加残差连接 (论文公式(2))
+        # F_out = Conv_1×1(Concat({F̄_1,...,F̄_B})) + F_in
+        out = self.fusion_conv(out)
+        out = out + identity
+        
+        return out
 
 
 class TemporalPatternDecoupling(nn.Module):
     """
-    时间模式解耦模块
+    时间模式解耦模块 - 使用小波变换实现论文公式(3)
+    
     使用小波变换将时间序列解耦为高频（短期波动）和低频（长期趋势）组件
     
     参数:
         wavelet (str): 小波类型，默认使用'db4'（DauBechies 4）
         level (int): 分解级别
+        mode (str): 边界扩展模式，用于处理信号边界，默认为'symmetric'
     """
-    def __init__(self, wavelet='db4', level=1):
+    def __init__(self, wavelet='db4', level=2, mode='symmetric'):
         super(TemporalPatternDecoupling, self).__init__()
         self.wavelet = wavelet
         self.level = level
+        self.mode = mode
         
     def forward(self, x):
         """
-        前向传播
+        前向传播 - 实现论文公式(3)中的小波变换 WT(F̄_b, w)
         
         参数:
             x (tensor): 输入特征 [batch_size, channels, seq_len]
             
         返回:
-            tuple: (长期模式-低频分量, 短期模式-高频分量)
+            tuple: (P_S^b - 短期模式, P_L^b - 长期模式)
+                  P_S^b: 短期模式，来自高频分量
+                  P_L^b: 长期模式，来自低频分量
         """
         batch_size, channels, seq_len = x.shape
         device = x.device
         
-        # 将张量转为CPU上的NumPy数组进行小波变换
-        x_np = x.detach().cpu().numpy()
+        # 将张量转换到CPU进行处理 (PyWavelet库要求使用NumPy数组)
+        x_cpu = x.detach().cpu()
         
-        # 初始化结果
-        low_freq = np.zeros_like(x_np)  # 长期模式
-        high_freq = np.zeros_like(x_np)  # 短期模式
+        # 创建用于存储结果的空张量
+        long_term = torch.zeros_like(x_cpu)  # 长期模式 (P_L^b)
+        short_term = torch.zeros_like(x_cpu)  # 短期模式 (P_S^b)
         
-        # 对每个样本和通道分别进行小波变换
+        # 确保小波分解级别不超过信号长度允许的最大级别
+        max_level = pywt.dwt_max_level(data_len=seq_len, filter_len=pywt.Wavelet(self.wavelet).dec_len)
+        current_level = min(self.level, max_level)
+        
+        # 对每个批次样本进行处理
         for b in range(batch_size):
-            for c in range(channels):
-                # 执行小波分解
-                coeffs = pywt.wavedec(x_np[b, c], self.wavelet, level=self.level)
-                
-                # 分离低频和高频分量
-                approx_coeffs = coeffs[0]  # 近似系数（低频）
-                detail_coeffs = coeffs[1:]  # 细节系数（高频）
-                
-                # 重构低频分量（长期模式）
-                # 保留近似系数，将细节系数设为0
-                low_coeffs = [approx_coeffs] + [None] * len(detail_coeffs)
-                low_freq[b, c] = pywt.waverec(low_coeffs, self.wavelet)[:seq_len]
-                
-                # 重构高频分量（短期模式）
-                # 将近似系数设为0，保留细节系数
-                high_coeffs = [np.zeros_like(approx_coeffs)]
-                for i, detail in enumerate(detail_coeffs):
-                    high_coeffs.append(detail)
-                high_freq[b, c] = pywt.waverec(high_coeffs, self.wavelet)[:seq_len]
-                
-                # 确保分解是完整的: 原始 = 低频 + 高频 (验证)
-                residual = x_np[b, c] - (low_freq[b, c] + high_freq[b, c])
-                if np.abs(residual).max() > 1e-10:
-                    # 如果残差较大，微调高频分量以确保精确分解
-                    high_freq[b, c] += residual
-        
-        # 转回PyTorch张量并移到原始设备
-        low_freq_tensor = torch.from_numpy(low_freq).to(device)  # 长期模式
-        high_freq_tensor = torch.from_numpy(high_freq).to(device)  # 短期模式
-        
-        return low_freq_tensor, high_freq_tensor
-
-
-class TemporalPatternAssembling(nn.Module):
-    """
-    时间模式组装模块
-    通过全局-局部和局部-全局交互增强时间特征
-    
-    参数:
-        channels (int): 特征通道数
-        seq_len (int): 序列长度
-    """
-    def __init__(self, channels, seq_len):
-        super(TemporalPatternAssembling, self).__init__()
-        
-        # 全局到局部映射（用于增强短期模式）
-        self.global_to_local = nn.Sequential(
-            nn.Conv1d(channels, channels, kernel_size=1),
-            nn.BatchNorm1d(channels),
-            nn.ReLU(inplace=True)
-        )
-        
-        # 局部到全局映射（用于增强长期模式）
-        self.local_to_global = nn.Sequential(
-            nn.AdaptiveAvgPool1d(1),  # 全局池化获取全局上下文
-            nn.Conv1d(channels, channels, kernel_size=1),
-            nn.Sigmoid()  # 生成注意力权重
-        )
-        
-        # 特征融合
-        self.fusion = nn.Sequential(
-            nn.Conv1d(channels * 2, channels, kernel_size=1),
-            nn.BatchNorm1d(channels),
-            nn.ReLU(inplace=True)
-        )
-        
-    def forward(self, long_term_pattern, short_term_pattern):
-        """
-        前向传播
-        
-        参数:
-            long_term_pattern (tensor): 长期模式（低频分量）[batch_size, channels, seq_len]
-            short_term_pattern (tensor): 短期模式（高频分量）[batch_size, channels, seq_len]
+            # 将特征reshape为2D张量 [channels, seq_len]
+            features_2d = x_cpu[b]
             
-        返回:
-            tensor: 增强的特征 [batch_size, channels, seq_len]
-        """
-        # 全局到局部交互：使用长期模式增强短期模式
-        global_context = self.global_to_local(long_term_pattern)
-        enhanced_short_term = short_term_pattern * global_context
+            # 创建低频和高频成分的存储
+            long_term_components = torch.zeros_like(features_2d)
+            short_term_components = torch.zeros_like(features_2d)
+            
+            # 对每个通道应用小波变换
+            for c in range(channels):
+                # 提取当前通道数据
+                channel_data = features_2d[c].numpy()
+                
+                try:
+                    # 应用小波分解 - 对应论文公式(3)
+                    coeffs = pywt.wavedec(channel_data, self.wavelet, level=current_level, mode=self.mode)
+                    
+                    # 分离低频和高频分量
+                    approx_coeffs = coeffs[0]  # 近似系数（低频) - 对应长期模式P_L^b
+                    detail_coeffs = coeffs[1:]  # 细节系数（高频) - 对应短期模式P_S^b
+                    
+                    # 重构低频分量（长期模式）- 保留近似系数，将细节系数设为None
+                    low_coeffs = [approx_coeffs] + [None] * len(detail_coeffs)
+                    long_term_reconstructed = pywt.waverec(low_coeffs, self.wavelet, mode=self.mode)
+                    
+                    # 处理重构长度可能与原始长度不匹配的情况
+                    if len(long_term_reconstructed) >= seq_len:
+                        long_term_components[c] = torch.from_numpy(long_term_reconstructed[:seq_len])
+                    else:
+                        # 如果重构后长度不足，则填充到原始长度
+                        padded = np.pad(long_term_reconstructed, 
+                                        (0, seq_len - len(long_term_reconstructed)), 
+                                        'constant')
+                        long_term_components[c] = torch.from_numpy(padded)
+                    
+                    # 重构高频分量（短期模式）- 将近似系数设为零，保留细节系数
+                    high_coeffs = [np.zeros_like(approx_coeffs)] + detail_coeffs
+                    short_term_reconstructed = pywt.waverec(high_coeffs, self.wavelet, mode=self.mode)
+                    
+                    # 处理重构长度可能与原始长度不匹配的情况
+                    if len(short_term_reconstructed) >= seq_len:
+                        short_term_components[c] = torch.from_numpy(short_term_reconstructed[:seq_len])
+                    else:
+                        # 如果重构后长度不足，则填充到原始长度
+                        padded = np.pad(short_term_reconstructed, 
+                                        (0, seq_len - len(short_term_reconstructed)), 
+                                        'constant')
+                        short_term_components[c] = torch.from_numpy(padded)
+                        
+                except Exception as e:
+                    # 如果小波变换失败，使用简单的低通和高通滤波作为备选方案
+                    logger.warning(f"小波变换失败: {e}，使用备选方案进行模式解耦")
+                    # 使用简单的移动平均作为低通滤波器
+                    window_size = max(1, seq_len // 8)  # 确保窗口大小至少为1
+                    kernel = np.ones(window_size) / window_size
+                    # 计算低频分量（移动平均）
+                    low_freq = np.convolve(channel_data, kernel, mode='same')
+                    # 高频分量 = 原始信号 - 低频分量
+                    high_freq = channel_data - low_freq
+                    
+                    long_term_components[c] = torch.from_numpy(low_freq.astype(np.float32))
+                    short_term_components[c] = torch.from_numpy(high_freq.astype(np.float32))
+            
+            # 存储该批次的结果
+            long_term[b] = long_term_components
+            short_term[b] = short_term_components
         
-        # 局部到全局交互：使用短期模式增强长期模式
-        local_context = self.local_to_global(short_term_pattern)
-        enhanced_long_term = long_term_pattern * local_context
+        # 将结果移回原始设备
+        long_term = long_term.to(device)
+        short_term = short_term.to(device)
         
-        # 特征融合
-        concat_features = torch.cat([enhanced_long_term, enhanced_short_term], dim=1)
-        assembled_features = self.fusion(concat_features)
+        # 验证重构的有效性: 原始信号应该约等于长期+短期模式
+        reconstructed = long_term + short_term
+        reconstruction_error = torch.abs(x - reconstructed).max().item()
+        if reconstruction_error > 1e-5:
+            # 如果误差较大，微调短期模式以减小误差
+            short_term = short_term + (x - reconstructed)
         
-        return assembled_features
+        # 按照论文中的约定，返回(短期模式, 长期模式) = (P_S^b, P_L^b)
+        return short_term, long_term
 
 
 class MSCNN(nn.Module):

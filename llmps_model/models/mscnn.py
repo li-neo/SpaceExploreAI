@@ -148,8 +148,8 @@ class MSBlock(nn.Module):
         # 拼接所有分支的输出
         concat_features = torch.cat(branch_outputs, dim=1)
         
-        # 添加残差连接
-        concat_features = concat_features + features
+        # 最后添加残差连接
+        # concat_features = concat_features + features
         
         # 为拼接后的特征进行时间模式解耦
         long_term_pattern, short_term_pattern = self.pattern_decoupling(concat_features)
@@ -311,7 +311,7 @@ class MSCNN(nn.Module):
                  seq_len=96, output_dim=512):
         super(MSCNN, self).__init__()
         
-        # 初始特征提取，从输入通道数转换到基础通道数
+        # 1.初始特征提取，从输入通道数转换到基础通道数
         self.init_conv = Conv1dBlock(in_channels, base_channels, kernel_size=3, padding=1)
         
         # 堆叠的多尺度块和通道调整层
@@ -412,7 +412,7 @@ class MSCNNWithAttention(nn.Module):
         
         # 最终投影
         self.final_projection = nn.Linear(output_dim, output_dim)
-        self.layer_norm = nn.LayerNorm(output_dim)
+        self.layer_norm = nn.RMSNorm(output_dim)
         
     def forward(self, x):
         """
@@ -448,12 +448,12 @@ class MSCNNWithAttention(nn.Module):
 if __name__ == "__main__":
     # 简单测试
     batch_size = 16  # 批量大小
-    channels = 64  # 输入变量数
-    seq_len = 96  # 序列长度
-    base_channels = 128  # 基础通道数
+    channels = 64  # 输入变量数，代表着时序数据的变量数，如open、close、high、low、volume等
+    seq_len = 32  # 序列长度，代表着时序数据的长度，如96个数据点
+    base_channels = 128  # 基础通道数，代表着每个多尺度块的输出通道数
     ms_blocks = 3  # 多尺度块数量
     num_branches = 4  # 每个多尺度块中的分支数量
-    output_dim = 64  # 输出特征维度
+    output_dim = 64  # 输出特征维度，代表着最终输出的特征维度，输出要和SPAI模型输入维度一致   
     
     # 创建随机输入张量
     x = torch.randn(batch_size, channels, seq_len)
@@ -482,3 +482,18 @@ if __name__ == "__main__":
     )
     output_attn = model_with_attn(x)
     logger.info(f"MSCNNWithAttention 输出形状: {output_attn.shape}") 
+
+"""
+数据流转换：
+输入：[batch_size, channels(64), seq_len(96)]
+初始转换后：[batch_size, base_channels(128), seq_len(96)]
+第二个MSBlock前：[batch_size, base_channels*2(256), seq_len/2(48)]
+第三个MSBlock前：[batch_size, base_channels*4(512), seq_len/4(24)]
+
+MSCNN中的设计体现了一种空间-通道平衡原则：
+序列长度减半：seq_len → seq_len/2 → seq_len/4 → ...
+通道数翻倍：base_channels → base_channels*2 → base_channels*4 → ...
+
+图像: [batch_size, channels, height, width]
+时序: [batch_size, channels, seq_len]
+"""

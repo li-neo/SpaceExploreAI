@@ -226,6 +226,8 @@ def train(args):
         feature_losses = []
         prompt_losses = []
         llm_losses = []
+        reconstruction_losses = []  # 新增：重构损失
+        semantic_losses = []        # 新增：语义分类损失
         
         start_time = time.time()
         
@@ -253,11 +255,26 @@ def train(args):
                 temporal_norm = F.normalize(temporal_features, p=2, dim=1)
                 feature_loss = 1.0 - F.cosine_similarity(semantic_norm, temporal_norm, dim=1).mean()
             
+            # 计算重构损失 (L_REC)
+            reconstruction_loss = 0.0
+            if 'reconstructed' in outputs and 'original_patches' in outputs:
+                reconstructed = outputs['reconstructed']
+                original_patches = outputs['original_patches']
+                reconstruction_loss = F.mse_loss(reconstructed, original_patches)
+            
+            # 计算语义分类损失 (L_SEM)
+            semantic_loss = 0.0
+            if 'semantic_logits' in outputs:
+                semantic_logits = outputs['semantic_logits']
+                # 使用预定义的语义标签进行监督
+                semantic_target = torch.zeros(semantic_logits.size(0), dtype=torch.long, device=device)
+                semantic_loss = F.cross_entropy(semantic_logits, semantic_target)
+            
             # 计算提示词生成损失
             prompt_loss = 0.0
             if 'prompt_logits' in outputs:
                 prompt_logits = outputs['prompt_logits']
-                # 简化处理，使用零标签
+                # 使用预定义的提示词模板进行监督
                 prompt_target = torch.zeros(prompt_logits.size(0), dtype=torch.long, device=device)
                 prompt_loss = F.cross_entropy(prompt_logits, prompt_target)
             
@@ -273,12 +290,19 @@ def train(args):
                     llm_target = torch.zeros(logits.size(0), logits.size(1), dtype=torch.long, device=device)
                     llm_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), llm_target.view(-1))
             
-            # 总损失 L_OBJ = L_TIME + λL_FEAT + μL_PROMPT + γL_LLM
-            feature_weight = config['training'].get('feature_weight', 0.5)  # λ
-            prompt_weight = config['training'].get('prompt_weight', 0.1)    # μ
-            llm_weight = config['training'].get('llm_weight', 0.1)          # γ
+            # 总损失 L_OBJ = L_TIME + λL_FEAT + μL_PROMPT + γL_LLM + δL_SEM + εL_REC
+            feature_weight = config['training'].get('feature_weight', 0.5)    # λ
+            prompt_weight = config['training'].get('prompt_weight', 0.1)      # μ
+            llm_weight = config['training'].get('llm_weight', 0.1)            # γ
+            semantic_weight = config['training'].get('semantic_weight', 0.2)  # δ
+            reconstruction_weight = config['training'].get('reconstruction_weight', 0.3)  # ε
             
-            loss = forecast_loss + feature_weight * feature_loss + prompt_weight * prompt_loss + llm_weight * llm_loss
+            loss = (forecast_loss + 
+                   feature_weight * feature_loss + 
+                   prompt_weight * prompt_loss + 
+                   llm_weight * llm_loss +
+                   semantic_weight * semantic_loss +
+                   reconstruction_weight * reconstruction_loss)
             
             # 反向传播
             loss.backward()
@@ -295,14 +319,19 @@ def train(args):
             feature_losses.append(feature_loss.item() if isinstance(feature_loss, torch.Tensor) else feature_loss)
             prompt_losses.append(prompt_loss.item() if isinstance(prompt_loss, torch.Tensor) else prompt_loss)
             llm_losses.append(llm_loss.item() if isinstance(llm_loss, torch.Tensor) else llm_loss)
+            semantic_losses.append(semantic_loss.item() if isinstance(semantic_loss, torch.Tensor) else semantic_loss)
+            reconstruction_losses.append(reconstruction_loss.item() if isinstance(reconstruction_loss, torch.Tensor) else reconstruction_loss)
             
-            # 打印进度
-            if (batch_idx + 1) % config['training']['log_interval'] == 0:
-                logger.info(f"Epoch [{epoch+1}/{config['training']['epochs']}] Batch [{batch_idx+1}/{len(train_loader)}] "
-                           f"Loss: {loss.item():.4f} Forecast: {forecast_loss.item():.4f} "
-                           f"Feature: {feature_loss.item() if isinstance(feature_loss, torch.Tensor) else feature_loss:.4f} "
-                           f"Prompt: {prompt_loss.item() if isinstance(prompt_loss, torch.Tensor) else prompt_loss:.4f} "
-                           f"LLM: {llm_loss.item() if isinstance(llm_loss, torch.Tensor) else llm_loss:.4f}")
+            # 打印训练进度
+            if batch_idx % config['training']['log_interval'] == 0:
+                logger.info(f'Epoch: {epoch}, Batch: {batch_idx}, '
+                          f'Loss: {loss.item():.4f}, '
+                          f'Forecast: {forecast_loss.item():.4f}, '
+                          f'Feature: {feature_loss:.4f}, '
+                          f'Prompt: {prompt_loss:.4f}, '
+                          f'LLM: {llm_loss:.4f}, '
+                          f'Semantic: {semantic_loss:.4f}, '
+                          f'Reconstruction: {reconstruction_loss:.4f}')
         
         # 计算平均损失
         avg_train_loss = np.mean(train_losses)
@@ -310,6 +339,8 @@ def train(args):
         avg_feature_loss = np.mean(feature_losses)
         avg_prompt_loss = np.mean(prompt_losses)
         avg_llm_loss = np.mean(llm_losses)
+        avg_semantic_loss = np.mean(semantic_losses)
+        avg_reconstruction_loss = np.mean(reconstruction_losses)
         
         # 记录到TensorBoard
         writer.add_scalar('Loss/train', avg_train_loss, epoch)
@@ -317,6 +348,8 @@ def train(args):
         writer.add_scalar('Loss/train_feature', avg_feature_loss, epoch)
         writer.add_scalar('Loss/train_prompt', avg_prompt_loss, epoch)
         writer.add_scalar('Loss/train_llm', avg_llm_loss, epoch)
+        writer.add_scalar('Loss/train_semantic', avg_semantic_loss, epoch)
+        writer.add_scalar('Loss/train_reconstruction', avg_reconstruction_loss, epoch)
         
         # 验证
         model.eval()

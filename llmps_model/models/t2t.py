@@ -80,6 +80,18 @@ class PatchEmbedding(nn.Module):
         """
         batch_size, channels, seq_len = x.shape
         
+        # 检查输入通道数与初始化时的通道数是否匹配
+        if channels != self.in_channels:
+            logger.warning(f"输入通道数 {channels} 与初始化的通道数 {self.in_channels} 不匹配，进行适配")
+            # 根据情况进行调整
+            if hasattr(self, 'projection'):
+                # 重新创建投影层以适应新的输入尺寸
+                device = next(self.parameters()).device
+                old_projection = self.projection
+                self.projection = nn.Linear(self.patch_size * channels, old_projection.out_features).to(device)
+                # 更新in_channels
+                self.in_channels = channels
+        
         # 计算片段数
         num_patches = max(1, (seq_len - self.patch_size) // self.stride + 1)
         
@@ -94,9 +106,26 @@ class PatchEmbedding(nn.Module):
                 patch = x[:, :, start_idx:end_idx]
                 
                 # 重塑为 [batch_size, channels*patch_size]
-                patch = patch.reshape(batch_size, -1)
+                patch = patch.reshape(batch_size, channels * self.patch_size)
                 
                 patches.append(patch)
+        
+        # 如果没有有效片段（序列太短），进行特殊处理
+        if len(patches) == 0:
+            logger.warning(f"序列长度 {seq_len} 小于片段大小 {self.patch_size}，使用整个序列")
+            # 使用可用的序列长度
+            available_len = min(seq_len, self.patch_size)
+            patch = x[:, :, :available_len]
+            
+            # 如果序列长度小于patch_size，进行填充
+            if available_len < self.patch_size:
+                padding_size = self.patch_size - available_len
+                padding = torch.zeros(batch_size, channels, padding_size, device=x.device)
+                patch = torch.cat([patch, padding], dim=2)
+            
+            # 重塑并添加
+            patch = patch.reshape(batch_size, channels * self.patch_size)
+            patches.append(patch)
         
         # 堆叠所有片段
         patches = torch.stack(patches, dim=1)  # [batch_size, num_patches, channels*patch_size]
@@ -173,10 +202,10 @@ class T2TExtractor(nn.Module):
         vocab_size (int): 词汇表大小
         output_dim (int): 输出特征维度
     """
-    def __init__(self, in_channels=1, patch_size=24, overlap=0, embed_dim=96, 
+    def __init__(self, in_channels=64, patch_size=16, overlap=0, embed_dim=128, 
                  num_encoder_layers=4, num_decoder_layers=1, nhead=4, 
-                 dim_feedforward=384, dropout=0.1, mask_ratio=0.75, 
-                 vocab_size=30000, output_dim=512):
+                 dim_feedforward=128, dropout=0.1, mask_ratio=0.75, 
+                 vocab_size=64, output_dim=64):
         super(T2TExtractor, self).__init__()
         
         self.in_channels = in_channels
@@ -230,6 +259,20 @@ class T2TExtractor(nn.Module):
             nn.ReLU(inplace=True)
         )
         
+        # 初始化权重
+        self._init_weights()
+        
+    def _init_weights(self):
+        """初始化模型权重"""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+    
     def forward(self, x, extract_semantics=False, reconstruct=False, return_all=False):
         """
         前向传播
@@ -249,7 +292,7 @@ class T2TExtractor(nn.Module):
                 dict: 包含所有中间结果
         """
         # 将时间序列分解为片段并嵌入
-        x_patches = self.patch_embedding(x)
+        x_patches = self.patch_embedding(x)  # [batch_size, num_patches, embed_dim]
         
         # 应用掩码
         masked_patches, mask_indices, original_patches = self.patch_masking(x_patches)
@@ -258,7 +301,7 @@ class T2TExtractor(nn.Module):
         pos_patches = self.positional_encoding(masked_patches)
         
         # 通过Transformer编码器
-        encoded_patches = self.transformer_encoder(pos_patches)
+        encoded_patches = self.transformer_encoder(pos_patches)  # [batch_size, num_patches, embed_dim]
         
         results = {}
         
@@ -266,10 +309,10 @@ class T2TExtractor(nn.Module):
             # 计算序列的全局表示
             global_repr = encoded_patches.mean(dim=1)  # [batch_size, embed_dim]
             
-            # 语义分类
+            # 语义分类 (公式7)
             semantic_logits = self.semantic_head(global_repr)  # [batch_size, vocab_size]
             
-            # 特征投影
+            # 特征投影 (公式8)
             semantic_features = self.feature_projection(global_repr)  # [batch_size, output_dim]
             
             if return_all:
@@ -321,9 +364,9 @@ class T2TWithPromptGeneration(nn.Module):
         output_dim (int): 输出特征维度
         max_prompt_len (int): 最大提示词长度
     """
-    def __init__(self, in_channels=1, patch_size=24, overlap=0, embed_dim=96, 
+    def __init__(self, in_channels=64, patch_size=16, overlap=0, embed_dim=128, 
                  num_encoder_layers=4, num_decoder_layers=1, nhead=4, 
-                 dim_feedforward=384, dropout=0.1, mask_ratio=0.75, 
+                 dim_feedforward=128, dropout=0.1, mask_ratio=0.75, 
                  vocab_size=30000, output_dim=512, max_prompt_len=100):
         super(T2TWithPromptGeneration, self).__init__()
         
@@ -410,27 +453,59 @@ class T2TWithPromptGeneration(nn.Module):
 
 
 if __name__ == "__main__":
-    # 简单测试
-    batch_size = 4
-    in_channels = 1
-    seq_len = 96
-    
-    # 创建随机输入
-    x = torch.randn(batch_size, in_channels, seq_len)
-    
-    # 测试T2TExtractor
-    model = T2TExtractor()
-    semantic_logits, semantic_features = model(x, extract_semantics=True)
-    logger.info(f"语义logits形状: {semantic_logits.shape}")
-    logger.info(f"语义特征形状: {semantic_features.shape}")
-    
-    # 测试重构
-    reconstructed = model(x, reconstruct=True)
-    logger.info(f"重构输出形状: {reconstructed.shape}")
-    
-    # 测试T2TWithPromptGeneration
-    model_with_prompt = T2TWithPromptGeneration()
-    generated_tokens, semantic_features, semantic_classes = model_with_prompt(x, generate_prompt=True)
-    logger.info(f"生成的提示词形状: {generated_tokens.shape}")
-    logger.info(f"语义特征形状: {semantic_features.shape}")
-    logger.info(f"语义类别形状: {semantic_classes.shape}") 
+    try:
+        # 简单测试
+        batch_size = 16
+        in_channels = 64  # 输入通道数
+        seq_len = 128
+        embed_dim = 128
+        
+        logger.info(f"创建测试输入: batch_size={batch_size}, in_channels={in_channels}, seq_len={seq_len}")
+        
+        # 创建随机输入
+        x = torch.randn(batch_size, in_channels, seq_len)
+        
+        # 测试T2TExtractor
+        logger.info("初始化T2TExtractor模型...")
+        model = T2TExtractor(
+            in_channels=in_channels,
+            patch_size=16,
+            embed_dim=embed_dim,
+            vocab_size=64,
+            output_dim=64
+        )
+        logger.info(f"模型参数总数: {sum(p.numel() for p in model.parameters())}")
+        
+        # 测试语义提取
+        logger.info("测试语义提取...")
+        semantic_logits, semantic_features = model(x, extract_semantics=True)
+        logger.info(f"语义logits形状: {semantic_logits.shape}")
+        logger.info(f"语义特征形状: {semantic_features.shape}")
+        
+        # 测试重构
+        logger.info("测试序列重构...")
+        reconstructed = model(x, reconstruct=True)
+        logger.info(f"重构输出形状: {reconstructed.shape}")
+        
+        # 测试T2TWithPromptGeneration
+        logger.info("初始化T2TWithPromptGeneration模型...")
+        model_with_prompt = T2TWithPromptGeneration(
+            in_channels=in_channels,
+            patch_size=16,
+            embed_dim=embed_dim,
+            vocab_size=30000,
+            output_dim=512
+        )
+        
+        # 测试提示词生成
+        logger.info("测试提示词生成...")
+        generated_tokens, semantic_features, semantic_classes = model_with_prompt(x, generate_prompt=True)
+        logger.info(f"生成的提示词形状: {generated_tokens.shape}")
+        logger.info(f"语义特征形状: {semantic_features.shape}")
+        logger.info(f"语义类别形状: {semantic_classes.shape}")
+        
+        logger.info("所有测试完成！")
+    except Exception as e:
+        logger.error(f"测试过程中出现错误: {e}")
+        import traceback
+        logger.error(traceback.format_exc()) 

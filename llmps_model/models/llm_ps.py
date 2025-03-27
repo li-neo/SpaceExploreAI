@@ -16,8 +16,8 @@ from log.logger import get_logger
 # 创建logger
 logger = get_logger("llm_ps", "llmps_model.log")
 
-from mscnn import MSCNN, MSCNNWithAttention
-from t2t import T2TExtractor, T2TWithPromptGeneration
+from llmps_model.models.mscnn import MSCNN, MSCNNWithAttention
+from llmps_model.models.t2t import T2TExtractor, T2TWithPromptGeneration
 
 
 class CrossModalityFusion(nn.Module):

@@ -1,6 +1,5 @@
 import os
 import time
-import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,15 +9,15 @@ from typing import Dict, List, Tuple, Optional, Union, Callable
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import random
+from log.logger import get_logger
+# 导入MSCNN和T2T模块
+from llmps_model.models.mscnn import MSCNN
+from llmps_model.models.t2t import T2TExtractor
 
 from model.transformer import StockTransformerModel, StockPricePredictor
 
 # 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__, log_file="train_model.log")
 
 
 class StockModelTrainer:
@@ -199,6 +198,53 @@ class StockModelTrainer:
         batch_lr_update_steps = self.config.get("batch_lr_update_steps", 100)
         batch_lr_gamma = self.config.get("batch_lr_gamma", 0.995)
         
+        # 初始化LLM-PS的MSCNN和T2T模块
+        use_llmps = self.config.get("use_llmps", True)
+        if use_llmps:
+            try:              
+                # 获取序列长度和特征维度
+                # sample_batch = next(iter(self.train_dataloader))
+                # seq_len = sample_batch[0].shape[2]
+                # feature_dim = sample_batch[0].shape[1]
+                seq_len = self.config.get("seq_len", 128)
+                feature_dim = self.config.get("feature_dim", 64)
+                # 保存特征维度为类成员变量
+                self.feature_dim = feature_dim
+                
+                # 初始化MSCNN模块，用于提取时间序列模式
+                mscnn_config = {
+                    'in_channels': feature_dim,
+                    'base_channels': self.config.get("mscnn_base_channels", 64),
+                    'ms_blocks': self.config.get("mscnn_ms_blocks", 1),
+                    'seq_len': seq_len,
+                    'output_dim': self.config.get("mscnn_output_dim", 64)
+                }
+                self.mscnn = MSCNN(**mscnn_config).to(self.device)
+                
+                # 初始化T2T模块，用于提取语义特征
+                t2t_config = {
+                    'in_channels': feature_dim,
+                    'patch_size': min(self.config.get("t2t_patch_size", 24), seq_len // 4),
+                    'overlap': self.config.get("t2t_overlap", 8),
+                    'embed_dim': self.config.get("t2t_embed_dim", 96),
+                    'num_encoder_layers': self.config.get("t2t_num_encoder_layers", 4),
+                    'num_decoder_layers': self.config.get("t2t_num_decoder_layers", 1),
+                    'nhead': self.config.get("t2t_nhead", 4),
+                    'dim_feedforward': self.config.get("t2t_dim_feedforward", 384),
+                    'dropout': self.config.get("t2t_dropout", 0.1),
+                    'mask_ratio': self.config.get("t2t_mask_ratio", 0.75),
+                    'vocab_size': 1024,
+                    'output_dim': self.config.get("t2t_output_dim", 512)
+                }
+                self.t2t = T2TExtractor(**t2t_config).to(self.device)
+                logger.info(f"已初始化LLM-PS模块：MSCNN和T2T，序列长度={seq_len}，特征维度={feature_dim}")
+            except ImportError as e:
+                logger.warning(f"导入LLM-PS模块失败，将使用原始输入: {e}")
+                use_llmps = False
+            except Exception as e:
+                logger.error(f"初始化LLM-PS模块时出错: {e}")
+                use_llmps = False
+                
         progress_bar = tqdm(self.train_dataloader, desc="Training")
         for i, batch in enumerate(progress_bar):
             # 更新全局批次计数器
@@ -208,6 +254,49 @@ class StockModelTrainer:
             inputs = batch[0].to(self.device)
             targets = batch[1].to(self.device)
             
+            # 使用LLM-PS进行数据预处理
+            if use_llmps:
+                try:
+                    # 保存原始输入，用于计算λ约束损失
+                    original_inputs = inputs.clone()
+                    
+                    # 转换输入形状以适应MSCNN [batch_size, seq_len, features] -> [batch_size, features, seq_len]
+                    if inputs.dim() == 3 and inputs.shape[1] != self.feature_dim:
+                        inputs_mscnn = inputs.transpose(1, 2)
+                    else:
+                        inputs_mscnn = inputs
+                    
+                    # 1. 通过MSCNN提取时间序列模式
+                    # inputs_mscnn:[batch_size, features, seq_len]
+                    # 输出: temporal_features: [batch_size, features, seq_len][16,32,64]
+                    temporal_features = self.mscnn(inputs_mscnn)
+                    
+                    # 2. 通过T2T提取语义特征
+                    # inputs_mscnn:[batch_size, features, seq_len]
+                    # 输出: semantic_features: [batch_size, seq_len, features][16,32,64]
+                    semantic_features = self.t2t(inputs_mscnn, extract_semantics=True)
+                    
+                    # 确保特征形状为 [batch_size, seq_len, features]
+                    # if temporal_features.dim() == 3:  # 当前是 [batch_size, features, seq_len]
+                    #     temporal_features = temporal_features.transpose(1, 2)
+                    
+                    # 3. 合并特征
+                    # 现在T2T已经直接返回正确格式 [batch_size, seq_len, features]，不需要再处理tuple和转置
+                    
+                    # 用增强的特征替换原始输入
+                    llmps_inputs = temporal_features + semantic_features
+                    
+                    # 计算λ约束损失（论文公式(9)）
+                    # Lλ = MSE(inputs, projected_features)
+                    lambda_loss = nn.MSELoss()(original_inputs, llmps_inputs)
+                    lambda_weight = self.config.get("llmps_lambda_weight", 0.01)  # λ值，根据配置设置
+                except Exception as e:
+                    logger.error(f"LLM-PS预处理失败: {e}")
+                    # 失败时使用原始输入
+                    inputs = original_inputs
+                    lambda_loss = 0
+                    lambda_weight = 0
+            
             if intensive_training:
                 # 对同一批次数据进行多次训练，强化学习
                 batch_losses = []
@@ -216,6 +305,11 @@ class StockModelTrainer:
                     outputs = self.model(inputs)
                     predictions = outputs["prediction"]
                     loss = self.loss_fn(predictions, targets)
+                    
+                    # 添加LLM-PS的约束损失
+                    if use_llmps and lambda_weight > 0:
+                        loss += lambda_weight * lambda_loss
+                        
                     loss.backward()
                     
                     # 梯度裁剪
@@ -259,10 +353,18 @@ class StockModelTrainer:
                         outputs = self.model(inputs)
                         predictions = outputs["prediction"]
                         loss = self.loss_fn(predictions, targets)
+                        
+                        # 添加LLM-PS的约束损失
+                        if use_llmps and lambda_weight > 0:
+                            loss += lambda_weight * lambda_loss
                 else:
                     outputs = self.model(inputs)
                     predictions = outputs["prediction"]
                     loss = self.loss_fn(predictions, targets)
+                    
+                    # 添加LLM-PS的约束损失
+                    if use_llmps and lambda_weight > 0:
+                        loss += lambda_weight * lambda_loss
                 
                 # 保存loss值以供后续使用
                 batch_loss = loss.item()
@@ -346,6 +448,14 @@ class StockModelTrainer:
             
             # 在每个批次后清理输入和目标张量以减少内存使用
             del inputs, targets
+            if use_llmps and 'original_inputs' in locals():
+                del original_inputs
+                if 'temporal_features' in locals():
+                    del temporal_features
+                if 'semantic_features' in locals():
+                    del semantic_features
+                if 'projected_features' in locals():
+                    del projected_features
                 
         # 计算平均损失
         avg_loss = epoch_loss / num_batches
@@ -361,11 +471,42 @@ class StockModelTrainer:
         all_predictions = []
         all_targets = []
         
+        # 检查是否使用LLM-PS
+        use_llmps = self.config.get("use_llmps", True) and hasattr(self, 'mscnn') and hasattr(self, 't2t')
+        
         with torch.no_grad():
             for batch in tqdm(self.val_dataloader, desc="Validating"):
                 # 批次数据移动到设备
                 inputs = batch[0].to(self.device)
                 targets = batch[1].to(self.device)
+                
+                # 使用LLM-PS进行数据预处理
+                if use_llmps:
+                    try:
+                        # 转换输入形状以适应MSCNN [batch_size, seq_len, features] -> [batch_size, features, seq_len]
+                        if inputs.dim() == 3 and inputs.shape[1] != self.feature_dim:
+                            inputs_mscnn = inputs.transpose(1, 2)
+                        else:
+                            inputs_mscnn = inputs
+                        
+                        # 1. 通过MSCNN提取时间序列模式
+                        temporal_features = self.mscnn(inputs_mscnn)
+                        # 确保特征形状为 [batch_size, seq_len, features]
+                        # if temporal_features.dim() == 3:
+                        #      # 当前是 [batch_size, features, seq_len]
+                        #     temporal_features = temporal_features.transpose(1, 2)
+                        
+                        # 2. 通过T2T提取语义特征
+                        semantic_features = self.t2t(inputs_mscnn, extract_semantics=True)
+                         
+                        # 3. 合并特征
+                        # 现在T2T已经直接返回正确格式 [batch_size, seq_len, features]，不需要再处理tuple和转置
+                        
+                        inputs = temporal_features + semantic_features
+                                
+                        logger.info(f"验证: 原始输入形状: {inputs.shape}, 投影后特征形状: {inputs.shape}")
+                    except Exception as e:
+                        logger.error(f"验证中LLM-PS预处理失败: {e}")
                 
                 # 前向传播
                 outputs = self.model(inputs)

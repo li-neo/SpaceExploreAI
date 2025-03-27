@@ -322,7 +322,7 @@ class MSCNN(nn.Module):
         ms_blocks (int): 多尺度块的数量
         num_branches (int): 每个多尺度块中的分支数量
         seq_len (int): 输入序列长度
-        output_dim (int): 输出特征维度
+        output_dim (int): 输出特征维度 (注意: 在当前实现中未使用，保留此参数是为了向后兼容)
     """
     def __init__(self, in_channels=64, base_channels=128, ms_blocks=3, num_branches=4, 
                  seq_len=96, output_dim=512):
@@ -356,16 +356,17 @@ class MSCNN(nn.Module):
             if i < ms_blocks - 1:
                 self.layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
                 current_seq_len = current_seq_len // 2
-                
-        # 全局特征提取
-        self.global_pool = nn.AdaptiveAvgPool1d(1)
         
-        # 投影到指定维度
-        self.projection = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(current_channels, output_dim),
-            nn.ReLU(inplace=True)
-        )
+        # 记录最终的通道数，这将是输出特征的通道数
+        self.final_channels = current_channels
+        
+        # 注意: 原始投影层在当前实现中不再使用，返回的是[batch_size, seq_len, final_channels]格式的特征
+        # self.global_pool = nn.AdaptiveAvgPool1d(1)
+        # self.projection = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.Linear(current_channels, output_dim),
+        #     nn.ReLU(inplace=True)
+        # )
         
     def forward(self, x):
         """
@@ -375,22 +376,56 @@ class MSCNN(nn.Module):
             x (tensor): 输入时间序列 [batch_size, channels, seq_len]
             
         返回:
-            tensor: 提取的多尺度特征 [batch_size, output_dim]
+            tensor: 提取的多尺度特征 [batch_size, seq_len, channels]
+                   其中channels是最后一个MSBlock的通道数(base_channels * 2^(ms_blocks-1))
+                   注意：channels与output_dim参数无关，output_dim仅在原设计中用于全局池化后的特征维度
         """
+        # 保存输入形状信息
+        batch_size, in_channels, seq_len = x.shape
+        
         # 初始特征提取
         x = self.init_conv(x)
         
+        # 存储中间特征表示
+        intermediate_features = []
+        
         # 通过所有层处理
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             x = layer(x)
+            # 在每个MSBlock后保存特征
+            if isinstance(layer, MSBlock):
+                intermediate_features.append(x)
+                
+        # 打印当前特征形状，用于调试
+        logger.debug(f"MSCNN处理后特征形状: {x.shape}")
         
-        # 全局池化
-        x = self.global_pool(x)
+        # 确保我们至少有一个中间特征
+        if not intermediate_features:
+            intermediate_features.append(x)
         
-        # 投影到指定维度
-        x = self.projection(x)
+        # 选择最后一个MSBlock的输出
+        last_features = intermediate_features[-1]  # [batch_size, channels, seq_len']
         
-        return x
+        # 调整特征以匹配输入格式 [batch_size, channels, seq_len'] -> [batch_size, seq_len', features]
+        # seq_len'可能小于原始seq_len，因为可能有下采样
+        _, channels, curr_seq_len = last_features.shape
+        
+        # 转置为 [batch_size, seq_len', channels]
+        transposed_features = last_features.transpose(1, 2)
+        
+        # 为了与原始输入的seq_len保持一致，如果需要的话，进行插值
+        if curr_seq_len != seq_len:
+            # 使用线性插值调整到原始序列长度
+            resized_features = F.interpolate(
+                transposed_features.transpose(1, 2),  # 转回 [batch_size, channels, seq_len']
+                size=seq_len,
+                mode='linear',
+                align_corners=False
+            ).transpose(1, 2)  # 再转回 [batch_size, seq_len, channels]
+        else:
+            resized_features = transposed_features
+        
+        return resized_features
 
 
 class MSCNNWithAttention(nn.Module):
@@ -403,33 +438,40 @@ class MSCNNWithAttention(nn.Module):
         ms_blocks (int): 多尺度块的数量
         num_branches (int): 每个多尺度块中的分支数量
         seq_len (int): 输入序列长度
-        output_dim (int): 输出特征维度
+        output_dim (int): 最终输出特征维度，用于最后的投影层
         num_heads (int): 注意力头数量
     """
     def __init__(self, in_channels=64, base_channels=128, ms_blocks=3, num_branches=4, 
                  seq_len=96, output_dim=512, num_heads=8):
         super(MSCNNWithAttention, self).__init__()
         
+        # 计算最终通道数，这将是MSCNN最后一层输出的通道数
+        # 在MSCNN中，通道数在每个MSBlock后翻倍
+        final_channels = base_channels * (2 ** (ms_blocks - 1))
+        
         # 基础MSCNN，使用更新后的结构，其中每个MSBlock内部具有时间模式解耦和组装功能
+        # 注意：MSCNN将返回[batch_size, seq_len, final_channels]格式的特征
         self.mscnn = MSCNN(
             in_channels=in_channels,
             base_channels=base_channels,
             ms_blocks=ms_blocks,
             num_branches=num_branches,
             seq_len=seq_len,
-            output_dim=output_dim
+            output_dim=output_dim  # 这个参数在MSCNN的实现中不再使用
         )
         
-        # 自注意力机制
+        # 自注意力机制 - 必须匹配MSCNN实际输出的通道数/特征维度
+        # 由于MSCNN返回的是[batch_size, seq_len, final_channels]格式，embed_dim应该是final_channels
         self.self_attention = nn.MultiheadAttention(
-            embed_dim=output_dim,
+            embed_dim=final_channels,  # 使用计算得到的final_channels作为embed_dim
             num_heads=num_heads,
             batch_first=True
         )
         
-        # 最终投影
-        self.final_projection = nn.Linear(output_dim, output_dim)
-        self.layer_norm = nn.RMSNorm(output_dim)
+        # 最终投影 - 将final_channels投影到指定的output_dim
+        self.final_projection = nn.Linear(final_channels, output_dim)
+        # 确保层归一化维度匹配
+        self.layer_norm = nn.LayerNorm(final_channels)  # 使用LayerNorm替代RMSNorm，更为标准
         
     def forward(self, x):
         """
@@ -439,23 +481,25 @@ class MSCNNWithAttention(nn.Module):
             x (tensor): 输入时间序列 [batch_size, channels, seq_len]
             
         返回:
-            tensor: 提取的特征 [batch_size, output_dim]
+            tensor: 提取的特征 [batch_size, seq_len, output_dim]
+                   通过注意力机制和投影层处理后的最终序列特征
         """
         # 使用基础MSCNN提取特征
-        features = self.mscnn(x)
+        features = self.mscnn(x)  # [batch_size, seq_len, channels]
         
-        # 添加维度用于自注意力 [batch_size, 1, output_dim]
-        attention_input = features.unsqueeze(1)
+        # 打印特征形状以便调试
+        logger.info(f"MSCNN输出特征形状: {features.shape}")
         
-        # 应用自注意力
+        # 应用自注意力，不需要额外的维度调整，因为特征已是[batch_size, seq_len, features]格式
         attn_output, _ = self.self_attention(
-            attention_input, attention_input, attention_input
+            features, features, features
         )
         
-        # 移除额外维度并应用残差连接
-        attn_output = attn_output.squeeze(1) + features
+        # 应用残差连接
+        attn_output = attn_output + features
         
         # 层归一化和最终投影
+        # 对每个时间步应用层归一化和投影
         output = self.layer_norm(attn_output)
         output = self.final_projection(output)
         
@@ -470,35 +514,60 @@ if __name__ == "__main__":
     base_channels = 128  # 基础通道数，代表着每个多尺度块的输出通道数
     ms_blocks = 3  # 多尺度块数量
     num_branches = 4  # 每个多尺度块中的分支数量
-    output_dim = 64  # 输出特征维度，代表着最终输出的特征维度，输出要和SPAI模型输入维度一致   
+    output_dim = 64  # 输出特征维度，在MSCNNWithAttention中使用，但在MSCNN中未使用
     
     # 创建随机输入张量
     x = torch.randn(batch_size, channels, seq_len)
     
-    # 测试MSCNN
-    model = MSCNN(
-        in_channels=channels,
-        base_channels=base_channels,
-        ms_blocks=ms_blocks, 
-        num_branches=num_branches,
-        seq_len=seq_len,
-        output_dim=output_dim
-    )
-    output = model(x)
-    logger.info(f"MSCNN 输出形状: {output.shape}")
-    
-    # 测试带注意力的MSCNN
-    model_with_attn = MSCNNWithAttention(
-        in_channels=channels,
-        base_channels=base_channels,
-        ms_blocks=ms_blocks, 
-        num_branches=num_branches,
-        seq_len=seq_len,
-        output_dim=output_dim,
-        num_heads=8
-    )
-    output_attn = model_with_attn(x)
-    logger.info(f"MSCNNWithAttention 输出形状: {output_attn.shape}") 
+    try:
+        # 测试MSCNN
+        logger.info("测试MSCNN模型:")
+        model = MSCNN(
+            in_channels=channels,
+            base_channels=base_channels,
+            ms_blocks=ms_blocks, 
+            num_branches=num_branches,
+            seq_len=seq_len,
+            output_dim=output_dim  # 此参数在当前实现中未使用
+        )
+        
+        # 计算最终通道数，用于验证
+        expected_channels = base_channels * (2 ** (ms_blocks - 1))
+        logger.info(f"预期的最终通道数: {expected_channels}")
+        
+        # 运行模型
+        output = model(x)
+        logger.info(f"MSCNN 输出形状: {output.shape}")  # 应该是 [batch_size, seq_len, expected_channels]
+        
+        # 验证输出形状
+        assert output.shape == (batch_size, seq_len, expected_channels), \
+            f"MSCNN输出形状错误，期望{(batch_size, seq_len, expected_channels)}，得到{output.shape}"
+        
+        # 测试带注意力的MSCNN
+        logger.info("测试MSCNNWithAttention模型:")
+        model_with_attn = MSCNNWithAttention(
+            in_channels=channels,
+            base_channels=base_channels,
+            ms_blocks=ms_blocks, 
+            num_branches=num_branches,
+            seq_len=seq_len,
+            output_dim=output_dim,  # 此参数用于最终的特征投影
+            num_heads=8
+        )
+        
+        # 运行带注意力的模型
+        output_attn = model_with_attn(x)
+        logger.info(f"MSCNNWithAttention 输出形状: {output_attn.shape}")  # 应该是 [batch_size, seq_len, output_dim]
+        
+        # 验证输出形状
+        assert output_attn.shape == (batch_size, seq_len, output_dim), \
+            f"MSCNNWithAttention输出形状错误，期望{(batch_size, seq_len, output_dim)}，得到{output_attn.shape}"
+        
+        logger.info("测试完成: 所有形状验证通过!")
+    except Exception as e:
+        logger.error(f"测试时出错: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 """
 数据流转换：

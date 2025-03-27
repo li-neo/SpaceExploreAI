@@ -168,3 +168,24 @@ class ModelArgs():
     # 验证和早停配置
     validate_every_n_batches: int = 1  # 每多少批次验证一次模型，0表示禁用
     early_stopping_min_improvement: float = 0.1  # 早停最小改进阈值，验证损失改进低于此值视为无改善
+    
+    # LLM-PS模型配置
+    use_llmps: bool = True  # 是否使用LLM-PS进行时间序列增强
+    llmps_lambda_weight: float = 0.01  # λ值，用于平衡LLM-PS约束损失权重
+    
+    # MSCNN配置
+    mscnn_base_channels: int = 64  # MSCNN基础通道数
+    mscnn_ms_blocks: int = 1  # MSCNN多尺度块数量
+    mscnn_output_dim: int = 64  # MSCNN输出维度
+    
+    # T2T配置
+    t2t_patch_size: int = 24  # T2T时间片段大小
+    t2t_overlap: int = 8  # T2T时间片段重叠大小
+    t2t_embed_dim: int = 128  # T2T嵌入维度
+    t2t_num_encoder_layers: int = 4  # T2T编码器层数
+    t2t_num_decoder_layers: int = 1  # T2T解码器层数
+    t2t_nhead: int = 4  # T2T注意力头数
+    t2t_dim_feedforward: int = 128  # T2T前馈网络维度
+    t2t_dropout: float = 0.1  # T2T丢弃率
+    t2t_mask_ratio: float = 0.75  # T2T掩码比率
+    t2t_output_dim: int = 64  # T2T输出维度

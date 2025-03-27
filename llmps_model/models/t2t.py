@@ -285,12 +285,18 @@ class T2TExtractor(nn.Module):
             
         返回:
             如果extract_semantics=True:
-                tuple: (语义logits, 语义特征)
+                tensor: 语义特征 [batch_size, seq_len, features]，
+                        与输入格式保持一致的特征表示
             如果reconstruct=True:
-                tensor: 重构后的序列
+                tensor: 重构后的序列 [batch_size, seq_len, features]
             如果return_all=True:
                 dict: 包含所有中间结果
+            默认:
+                tensor: 转换为[batch_size, seq_len, features]格式的特征
         """
+        # 保存输入形状信息
+        batch_size, in_channels, seq_len = x.shape
+        
         # 将时间序列分解为片段并嵌入
         x_patches = self.patch_embedding(x)  # [batch_size, num_patches, embed_dim]
         
@@ -305,43 +311,68 @@ class T2TExtractor(nn.Module):
         
         results = {}
         
+        # 获取序列特征的通用方法 - 将编码的patch特征映射回原始序列形状
+        def get_sequence_features(patches_features):
+            # 将每个patch的特征投影到输出维度
+            num_patches = patches_features.shape[1]
+            projected = self.feature_projection(patches_features.reshape(-1, self.embed_dim))
+            projected = projected.reshape(batch_size, num_patches, self.output_dim)
+            
+            # 计算每个patch对应的原始序列区域
+            patch_size = self.patch_size
+            stride = patch_size - self.patch_embedding.overlap
+            
+            # 创建输出特征张量
+            seq_feats = torch.zeros(batch_size, seq_len, self.output_dim, device=x.device)
+            
+            # 将patch特征映射回原始序列位置
+            for i in range(num_patches):
+                start_idx = i * stride
+                end_idx = min(start_idx + patch_size, seq_len)
+                
+                # 确保不超出序列范围
+                if start_idx >= seq_len:
+                    break
+                
+                # 将patch特征复制到对应位置
+                seq_feats[:, start_idx:end_idx, :] = projected[:, i:i+1, :]
+                
+            return seq_feats
+        
         if extract_semantics:
-            # 计算序列的全局表示
-            global_repr = encoded_patches.mean(dim=1)  # [batch_size, embed_dim]
-            
-            # 语义分类 (公式7)
-            semantic_logits = self.semantic_head(global_repr)  # [batch_size, vocab_size]
-            
-            # 特征投影 (公式8)
-            semantic_features = self.feature_projection(global_repr)  # [batch_size, output_dim]
+            # 获取编码后的特征序列并转换为序列特征
+            seq_features = get_sequence_features(encoded_patches)
             
             if return_all:
-                results['semantic_logits'] = semantic_logits
-                results['semantic_features'] = semantic_features
+                results['semantic_features'] = seq_features
             else:
-                return semantic_logits, semantic_features
+                return seq_features
         
         if reconstruct:
             # 通过Transformer解码器重构
-            # 使用编码器输出作为记忆，使用全零序列作为输入
             batch_size, num_patches, _ = original_patches.shape
             tgt = torch.zeros_like(original_patches)
             
-            reconstructed = self.transformer_decoder(tgt, encoded_patches)
+            reconstructed_patches = self.transformer_decoder(tgt, encoded_patches)
+            
+            # 将重构的patch特征转换为序列特征
+            reconstructed_seq = get_sequence_features(reconstructed_patches)
             
             if return_all:
-                results['reconstructed'] = reconstructed
+                results['reconstructed'] = reconstructed_seq
             else:
-                return reconstructed
+                return reconstructed_seq
         
         if return_all:
+            # 为所有结果添加序列形式
             results['encoded_patches'] = encoded_patches
+            results['encoded_sequence'] = get_sequence_features(encoded_patches)
             results['masked_patches'] = masked_patches
             results['original_patches'] = original_patches
             return results
         
-        # 默认返回编码器输出
-        return encoded_patches
+        # 默认情况下，返回编码序列格式的特征
+        return get_sequence_features(encoded_patches)
 
 
 class T2TWithPromptGeneration(nn.Module):
@@ -389,6 +420,18 @@ class T2TWithPromptGeneration(nn.Module):
         self.max_prompt_len = max_prompt_len
         self.vocab_size = vocab_size
         
+        # 提示词生成头 - 需要使用全局特征，添加全局池化
+        self.global_pooling = nn.AdaptiveAvgPool1d(1)
+        
+        # 语义分类头
+        self.semantic_head = nn.Sequential(
+            nn.Linear(output_dim, output_dim * 2),
+            nn.LayerNorm(output_dim * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(output_dim * 2, vocab_size)
+        )
+        
         # 提示词生成头
         self.prompt_generation_head = nn.Sequential(
             nn.Linear(output_dim, output_dim * 2),
@@ -410,10 +453,24 @@ class T2TWithPromptGeneration(nn.Module):
             如果generate_prompt=True:
                 tuple: (生成的提示词, 语义特征, 语义类别)
             否则:
-                tensor: 语义特征 [batch_size, output_dim]
+                tensor: 语义特征 [batch_size, seq_len, output_dim]
         """
-        # 提取语义
-        semantic_logits, semantic_features = self.t2t_extractor(x, extract_semantics=True)
+        # 提取语义特征 [batch_size, seq_len, output_dim]
+        semantic_features = self.t2t_extractor(x, extract_semantics=True)
+        
+        # 打印特征形状以便调试
+        logger.info(f"T2T语义特征形状: {semantic_features.shape}")
+        
+        # 使用全局池化获取序列表示 [batch_size, output_dim]
+        # 先转置特征为 [batch_size, output_dim, seq_len]，以便进行池化
+        global_features = semantic_features.transpose(1, 2)
+        global_features = self.global_pooling(global_features).squeeze(-1)  # [batch_size, output_dim]
+        
+        # 打印全局特征形状以便调试
+        logger.info(f"全局特征形状: {global_features.shape}")
+        
+        # 计算语义分类
+        semantic_logits = self.semantic_head(global_features)  # [batch_size, vocab_size]
         
         # 获取语义类别
         semantic_classes = torch.argmax(semantic_logits, dim=1)  # [batch_size]
@@ -430,7 +487,7 @@ class T2TWithPromptGeneration(nn.Module):
             # 自回归生成
             for _ in range(self.max_prompt_len - 1):
                 # 获取下一个token的logits
-                token_logits = self.prompt_generation_head(semantic_features)  # [batch_size, vocab_size]
+                token_logits = self.prompt_generation_head(global_features)  # [batch_size, vocab_size]
                 
                 # 选择最可能的下一个token
                 next_token = torch.argmax(token_logits, dim=1, keepdim=True)  # [batch_size, 1]
@@ -444,7 +501,7 @@ class T2TWithPromptGeneration(nn.Module):
                 
                 # 更新特征（简化版本）
                 # 在实际应用中，应基于已生成的token重新计算特征
-                semantic_features = semantic_features * 0.9
+                global_features = global_features * 0.9
             
             return generated_tokens, semantic_features, semantic_classes
         
@@ -459,6 +516,7 @@ if __name__ == "__main__":
         in_channels = 64  # 输入通道数
         seq_len = 128
         embed_dim = 128
+        output_dim = 64
         
         logger.info(f"创建测试输入: batch_size={batch_size}, in_channels={in_channels}, seq_len={seq_len}")
         
@@ -472,37 +530,60 @@ if __name__ == "__main__":
             patch_size=16,
             embed_dim=embed_dim,
             vocab_size=64,
-            output_dim=64
+            output_dim=output_dim
         )
         logger.info(f"模型参数总数: {sum(p.numel() for p in model.parameters())}")
         
         # 测试语义提取
         logger.info("测试语义提取...")
-        semantic_logits, semantic_features = model(x, extract_semantics=True)
-        logger.info(f"语义logits形状: {semantic_logits.shape}")
-        logger.info(f"语义特征形状: {semantic_features.shape}")
+        semantic_features = model(x, extract_semantics=True)
+        logger.info(f"语义特征形状: {semantic_features.shape}")  # 应该是[batch_size, seq_len, output_dim]
+        assert semantic_features.shape == (batch_size, seq_len, output_dim), f"语义特征形状错误: {semantic_features.shape}"
+        
+        # 测试默认返回
+        logger.info("测试默认特征提取...")
+        default_features = model(x)
+        logger.info(f"默认特征形状: {default_features.shape}")  # 应该是[batch_size, seq_len, output_dim]
+        assert default_features.shape == (batch_size, seq_len, output_dim), f"默认特征形状错误: {default_features.shape}"
         
         # 测试重构
         logger.info("测试序列重构...")
         reconstructed = model(x, reconstruct=True)
-        logger.info(f"重构输出形状: {reconstructed.shape}")
+        logger.info(f"重构输出形状: {reconstructed.shape}")  # 应该是[batch_size, seq_len, output_dim]
+        assert reconstructed.shape == (batch_size, seq_len, output_dim), f"重构特征形状错误: {reconstructed.shape}"
+        
+        # 测试返回所有结果
+        logger.info("测试返回所有结果...")
+        all_results = model(x, return_all=True)
+        logger.info(f"返回结果类型: {type(all_results)}")
+        for key, value in all_results.items():
+            if isinstance(value, torch.Tensor):
+                logger.info(f"{key} 形状: {value.shape}")
         
         # 测试T2TWithPromptGeneration
         logger.info("初始化T2TWithPromptGeneration模型...")
+        output_dim_prompt = 512
         model_with_prompt = T2TWithPromptGeneration(
             in_channels=in_channels,
             patch_size=16,
             embed_dim=embed_dim,
             vocab_size=30000,
-            output_dim=512
+            output_dim=output_dim_prompt
         )
         
         # 测试提示词生成
         logger.info("测试提示词生成...")
         generated_tokens, semantic_features, semantic_classes = model_with_prompt(x, generate_prompt=True)
         logger.info(f"生成的提示词形状: {generated_tokens.shape}")
-        logger.info(f"语义特征形状: {semantic_features.shape}")
+        logger.info(f"语义特征形状: {semantic_features.shape}")  # 应该是[batch_size, seq_len, output_dim_prompt]
+        assert semantic_features.shape == (batch_size, seq_len, output_dim_prompt), f"提示词生成的语义特征形状错误: {semantic_features.shape}"
         logger.info(f"语义类别形状: {semantic_classes.shape}")
+        
+        # 测试默认返回
+        logger.info("测试提示词默认返回...")
+        default_features = model_with_prompt(x)
+        logger.info(f"提示词模型默认返回形状: {default_features.shape}")  # 应该是[batch_size, seq_len, output_dim_prompt]
+        assert default_features.shape == (batch_size, seq_len, output_dim_prompt), f"提示词模型默认返回形状错误: {default_features.shape}"
         
         logger.info("所有测试完成！")
     except Exception as e:

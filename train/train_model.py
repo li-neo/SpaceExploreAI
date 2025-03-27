@@ -254,8 +254,28 @@ def train_model(args: ModelArgs):
         # 批次级学习率调整
         "batch_lr_update": args.batch_lr_update,               # 是否在批次级别调整学习率, 推荐值: False
         "batch_lr_update_steps": args.batch_lr_update_steps,   # 每多少批次调整一次学习率, 推荐值: 100
-        "batch_lr_gamma": args.batch_lr_gamma              # 批次级学习率衰减因子, 推荐值: 0.995
-
+        "batch_lr_gamma": args.batch_lr_gamma,              # 批次级学习率衰减因子, 推荐值: 0.995
+        
+        # LLM-PS相关配置
+        "use_llmps": args.use_llmps,                  # 是否使用LLM-PS进行时间序列增强, 推荐值: True
+        "llmps_lambda_weight": args.llmps_lambda_weight, # λ值，约束损失权重, 推荐值: 0.01
+        
+        # MSCNN配置
+        "mscnn_base_channels": args.mscnn_base_channels,  # 基础通道数, 推荐值: 64
+        "mscnn_ms_blocks": args.mscnn_ms_blocks,      # 多尺度块数量, 推荐值: 3
+        "mscnn_output_dim": args.mscnn_output_dim,    # 输出维度, 推荐值: 512
+        
+        # T2T配置
+        "t2t_patch_size": args.t2t_patch_size,        # 时间片段大小, 推荐值: 24
+        "t2t_overlap": args.t2t_overlap,              # 时间片段重叠大小, 推荐值: 8
+        "t2t_embed_dim": args.t2t_embed_dim,          # 嵌入维度, 推荐值: 96
+        "t2t_num_encoder_layers": args.t2t_num_encoder_layers, # 编码器层数, 推荐值: 4
+        "t2t_num_decoder_layers": args.t2t_num_decoder_layers, # 解码器层数, 推荐值: 1
+        "t2t_nhead": args.t2t_nhead,                  # 注意力头数, 推荐值: 4
+        "t2t_dim_feedforward": args.t2t_dim_feedforward, # 前馈网络维度, 推荐值: 384
+        "t2t_dropout": args.t2t_dropout,              # 丢弃率, 推荐值: 0.1
+        "t2t_mask_ratio": args.t2t_mask_ratio,        # 掩码比率, 推荐值: 0.75
+        "t2t_output_dim": args.t2t_output_dim,        # 输出维度, 推荐值: 512
     }
         
     # 创建优化器

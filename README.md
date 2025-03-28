@@ -5,8 +5,7 @@
 SpaceExploreAI 是一个基于深度学习网络的投资预测系统，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE，可用于股票价格趋势预测、技术分析和投资决策辅助。该项目结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的股票预测解决方案。
 
 ## 开源模型
-SpaceExploreAI-5M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-5M
-
+SpaceExploreAI-27M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M
 ## 免责声明
 SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资标的、创建投资策略；支持商业运行但自负责任，如需要获得商业支持，请联系liguangxian1995@gmail.com
 
@@ -19,7 +18,7 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 - **先进的模型架构**：基于 Transformer 架构，集成了 MLA 多头潜在注意力、MoE 混合专家和自适应学习等先进技术
 - **丰富的技术指标**：内置超过 30 种技术分析指标，包括移动平均线、RSI、MACD、布林带等，同时包含反转交易策略、趋势交易策略、动量交易策略
 - **灵活的训练配置**：支持多种训练参数配置，包括回归和分类任务、多股票联合训练，后续添加市场动态、行业动态、报表分析和情绪指标
-- **灵活的训练配置**：
+- **灵活的训练配置**：完全开源训练脚本，完整的数据下载、以及数据处理过程；ModelArgs配置参数丰富，提供模型权重更改
 - **完整数据流水线**：自动化的数据获取、预处理、特征工程和模型训练流程
 - **详细的模型评估**：提供多种评估指标和可视化方法，帮助理解模型性能
 

@@ -23,6 +23,14 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 - **完整数据流水线**：自动化的数据获取、预处理、特征工程和模型训练流程
 - **详细的模型评估**：提供多种评估指标和可视化方法，帮助理解模型性能
 
+## RNN网络
+![RNN](docs/RNN.png "RNN")
+
+## MOE
+![MOE](docs/MOE.png "MOE")
+
+## MSCNN
+![MSCNN](docs/MSCNN.png "MSCNN")
 ## 系统架构
 
 ```

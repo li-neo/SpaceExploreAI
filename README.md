@@ -1,8 +1,8 @@
-# SpaceExploreAI 投资预测大模型
+# SpaceExploreAI 时序数据大语言模型TSF-LLM
 
 ## 项目介绍
 
-SpaceExploreAI 是一个基于深度学习网络的投资预测系统，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE，可用于股票价格趋势预测、技术分析和投资决策辅助。该项目结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的股票预测解决方案。
+SpaceExploreAI 是一个基于深度学习网络的投资预测系统，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE、MSCNN、T2T Extrctor、MLP；此模型可用于股票价格趋势预测、技术分析和投资决策辅助，并结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的金融投资预测解决方案。
 
 ## 开源模型
 SpaceExploreAI-27M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M
@@ -49,7 +49,8 @@ SpaceExploreAI/
 ├── evaluate/              # 评估工具
 │   └── evaluate_model.py  # 模型评估脚本
 └── examples/              # 示例
-    └── quick_start.py     # 快速入门示例
+│   └── quick_start.py     # 快速入门示例
+├── llmps_model/           # 多尺度卷积网络
 ```
 
 ## 模型架构
@@ -65,7 +66,7 @@ SpaceExploreAI/
 7. **残差连接和层归一化**：确保深层网络的有效训练
 8. **训练器**：通过配置文件，进行模型训练和调试
 9. **验证器**：训练过程中，实时hook训练指标和性能指标
-
+10. **MSCNN**：多尺度卷积网络，在时序数据的时间维度上处理长短周期问题
 ### 技术细节
 
 #### 多头潜在注意力 (MLA)

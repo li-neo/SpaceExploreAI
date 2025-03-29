@@ -13,6 +13,7 @@ from log.logger import get_logger
 # 导入MSCNN和T2T模块
 from llmps_model.models.mscnn import MSCNN
 from llmps_model.models.t2t import T2TExtractor
+from train.tools import InstanceNorm3D
 
 from model.transformer import StockTransformerModel, StockPricePredictor
 
@@ -210,6 +211,7 @@ class StockModelTrainer:
                 feature_dim = self.config.get("feature_dim", 64)
                 # 保存特征维度为类成员变量
                 self.feature_dim = feature_dim
+                self.instance_norm = InstanceNorm3D(feature_dim)
                 
                 # 初始化MSCNN模块，用于提取时间序列模式
                 mscnn_config = {
@@ -259,7 +261,8 @@ class StockModelTrainer:
                 try:
                     # 保存原始输入，用于计算λ约束损失
                     original_inputs = inputs.clone()
-                    
+                    # 使用Instance Norm进行归一化
+                    inputs = self.instance_norm(inputs)
                     # 转换输入形状以适应MSCNN [batch_size, seq_len, features] -> [batch_size, features, seq_len]
                     if inputs.dim() == 3 and inputs.shape[1] != self.feature_dim:
                         inputs_mscnn = inputs.transpose(1, 2)

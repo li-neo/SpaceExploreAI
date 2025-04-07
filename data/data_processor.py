@@ -170,16 +170,21 @@ class StockDataProcessor:
         result_df = df.copy()
         
         if feature_groups is None:
-            feature_groups = ['time', 'lag', 'return', 'volatility', 'volume']
+            feature_groups = ['time', 'lag', 'return', 'volatility', 'volume', 'market_regime', 'relation']
             
         logger.info(f"要添加的特征组: {feature_groups}")
             
         # 添加技术指标(不添加任何指标， 从原始数据上开始训练)
-        # if 'technical' in feature_groups or 'all' in feature_groups:
-        #     if technical_indicators is None:
-        #         result_df = self.tech_processor.calculate_all_indicators(result_df)
-        #     else:
-        #         result_df = self.tech_processor.process_stock_data(result_df, technical_indicators)
+        if 'technical' in feature_groups or 'all' in feature_groups:
+            if technical_indicators is None:
+                result_df = self.tech_processor.calculate_all_indicators(result_df)
+            else:
+                result_df = self.tech_processor.process_stock_data(result_df, technical_indicators)
+        
+        # 添加日期数值特征
+        if 'date' in result_df.columns:
+            result_df = self._add_date_numeric_features(result_df)
+            logger.info("已添加日期数值特征")
                 
         # 添加时间特征
         if ('time' in feature_groups or 'all' in feature_groups) and 'date' in result_df.columns:
@@ -215,10 +220,52 @@ class StockDataProcessor:
         if 'volume' in feature_groups or 'all' in feature_groups:
             result_df = self._add_volume_features(result_df)
             logger.info("已添加成交量特征")
+
+        # 添加市场状态特征
+        if 'market_regime' in feature_groups or 'all' in feature_groups:
+            result_df = self._add_market_regime_features(result_df)
+            logger.info("已添加市场状态特征")
+            
+        # 添加关系特征
+        if 'relation' in feature_groups or 'all' in feature_groups:
+            result_df = self._add_relation_features(result_df)
+            logger.info("已添加关系特征")
             
         # 输出最终特征列
         logger.info(f"最终数据形状: {result_df.shape}, 列数: {len(result_df.columns)}")
         logger.info(f"特征列名: {result_df.columns.tolist()}")
+        
+        return result_df
+    
+    def _add_date_numeric_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        将日期转换为数值特征
+        
+        参数:
+            df: 输入数据框
+            
+        返回:
+            添加了日期数值特征的数据框
+        """
+        result_df = df.copy()
+        
+        # 确保日期列是datetime类型
+        if 'date' in result_df.columns and not pd.api.types.is_datetime64_any_dtype(result_df['date']):
+            result_df['date'] = pd.to_datetime(result_df['date'])
+            
+        # 创建基于Unix时间戳的特征（以秒为单位）
+        result_df['date_timestamp'] = result_df['date'].astype('int64') // 10**9
+        
+        # 创建以天为单位的特征（从起始日期开始的天数）
+        min_date = result_df['date'].min()
+        result_df['date_days'] = (result_df['date'] - min_date).dt.days
+        
+        # 创建年份特征（适合长期数据）
+        result_df['date_year'] = result_df['date'].dt.year
+        
+        # 保留原始日期列，以便将来使用
+        
+        logger.info("已添加日期数值特征: date_timestamp, date_days, date_year")
         
         return result_df
     
@@ -422,6 +469,181 @@ class StockDataProcessor:
                 
         return result_df
     
+    def _add_market_regime_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        添加市场状态/形态特征
+        
+        参数:
+            df: 输入数据框
+            
+        返回:
+            添加了市场状态特征的数据框
+        """
+        result_df = df.copy()
+        
+        # 检查必要的列是否存在
+        if 'close' not in result_df.columns:
+            logger.warning("缺少计算市场状态特征所需的close列")
+            return result_df
+            
+        # 1. 布林带特征 - 判断价格相对于布林带的位置
+        windows = [20, 50]
+        for window in windows:
+            # 计算移动平均
+            ma = result_df['close'].rolling(window=window).mean()
+            # 计算标准差
+            std = result_df['close'].rolling(window=window).std()
+            
+            # 创建布林带上下轨
+            upper_band = ma + 2 * std
+            lower_band = ma - 2 * std
+            
+            # 价格相对于布林带的位置 (0-1之间的比例)
+            result_df[f'bollinger_position_{window}d'] = (result_df['close'] - lower_band) / (upper_band - lower_band)
+            
+            # 带宽 - 波动性指标
+            result_df[f'bollinger_bandwidth_{window}d'] = (upper_band - lower_band) / ma
+            
+        # 2. 相对强弱指标 (RSI)
+        for window in [7, 14, 21]:
+            delta = result_df['close'].diff()
+            gain = delta.where(delta > 0, 0)
+            loss = -delta.where(delta < 0, 0)
+            
+            avg_gain = gain.rolling(window=window).mean()
+            avg_loss = loss.rolling(window=window).mean()
+            
+            rs = avg_gain / avg_loss.where(avg_loss != 0, 1)  # 避免除零
+            result_df[f'rsi_{window}d'] = 100 - (100 / (1 + rs))
+            
+        # 3. 趋势强度指标
+        for window in [20, 50, 100]:
+            # 计算线性回归斜率
+            x = np.arange(window)
+            # 使用rolling apply计算每个窗口的斜率
+            def calc_slope(y):
+                if len(y) < window:
+                    return np.nan
+                return np.polyfit(x, y, 1)[0]
+                
+            slopes = result_df['close'].rolling(window=window).apply(calc_slope, raw=True)
+            result_df[f'trend_slope_{window}d'] = slopes
+            
+            # 归一化斜率（相对于价格）
+            result_df[f'trend_slope_norm_{window}d'] = slopes / result_df['close'] * 100
+            
+        # 4. 过去波动率与价格关系
+        for window in [10, 30]:
+            vol = result_df['close'].pct_change().rolling(window=window).std()
+            result_df[f'price_vol_ratio_{window}d'] = result_df['close'] / (vol * 100)
+            
+        # 5. 价格-量能关系
+        if 'volume' in result_df.columns:
+            # 价格变化率与成交量变化率的比值
+            price_change = result_df['close'].pct_change()
+            vol_change = result_df['volume'].pct_change()
+            result_df['price_vol_change_ratio'] = price_change / vol_change.replace(0, np.nan)
+            
+            # 不同周期的价格-成交量关系
+            for window in [5, 20]:
+                result_df[f'price_vol_corr_{window}d'] = (
+                    result_df['close'].rolling(window).corr(result_df['volume'])
+                )
+                
+        return result_df
+        
+    def _add_relation_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        添加关系特征 - 价格之间的关系和模式
+        
+        参数:
+            df: 输入数据框
+            
+        返回:
+            添加了关系特征的数据框
+        """
+        result_df = df.copy()
+        
+        # 检查必要的列是否存在
+        required_cols = ['open', 'high', 'low', 'close']
+        missing_cols = [col for col in required_cols if col not in result_df.columns]
+        if missing_cols:
+            logger.warning(f"缺少计算关系特征所需的列: {missing_cols}")
+            return result_df
+            
+        # 1. K线形态特征
+        
+        # 1.1 上影线比例 = (最高价 - 最大(开盘价,收盘价)) / 收盘价
+        result_df['upper_shadow_ratio'] = (result_df['high'] - result_df[['open', 'close']].max(axis=1)) / result_df['close']
+        
+        # 1.2 下影线比例 = (最小(开盘价,收盘价) - 最低价) / 收盘价
+        result_df['lower_shadow_ratio'] = (result_df[['open', 'close']].min(axis=1) - result_df['low']) / result_df['close']
+        
+        # 1.3 实体比例 = |收盘价 - 开盘价| / (最高价 - 最低价)
+        result_df['body_ratio'] = abs(result_df['close'] - result_df['open']) / (result_df['high'] - result_df['low'])
+        
+        # 2. 过去N天的高低点位置
+        for window in [5, 10, 20]:
+            # 2.1 当前价格在过去N天高低点范围的位置 (0-1)
+            high_max = result_df['high'].rolling(window=window).max()
+            low_min = result_df['low'].rolling(window=window).min()
+            result_df[f'price_position_{window}d'] = (result_df['close'] - low_min) / (high_max - low_min)
+            
+            # 2.2 价格与最高点的差距
+            result_df[f'price_to_high_{window}d'] = (result_df['close'] / high_max - 1) * 100
+            
+            # 2.3 价格与最低点的差距
+            result_df[f'price_to_low_{window}d'] = (result_df['close'] / low_min - 1) * 100
+            
+        # 3. 统计模式
+        for window in [10, 20]:
+            # 3.1 收盘价偏度 - 描述分布的不对称性
+            result_df[f'close_skew_{window}d'] = result_df['close'].rolling(window=window).skew()
+            
+            # 3.2 收盘价峰度 - 描述分布的尖峭程度
+            result_df[f'close_kurt_{window}d'] = result_df['close'].rolling(window=window).kurt()
+            
+        # 4. 连续上涨/下跌天数
+        # 计算价格变动方向 (1=上涨, -1=下跌, 0=不变)
+        price_direction = np.sign(result_df['close'].diff())
+        
+        # 上涨计数器
+        up_count = 0
+        up_streak = []
+        
+        # 下跌计数器
+        down_count = 0
+        down_streak = []
+        
+        # 计算连续上涨/下跌天数
+        for direction in price_direction:
+            if direction > 0:  # 上涨
+                up_count += 1
+                down_count = 0
+            elif direction < 0:  # 下跌
+                down_count += 1
+                up_count = 0
+            else:  # 不变
+                up_count = 0
+                down_count = 0
+                
+            up_streak.append(up_count)
+            down_streak.append(down_count)
+            
+        result_df['up_streak'] = up_streak
+        result_df['down_streak'] = down_streak
+        
+        # 5. 价格突破特征
+        for window in [20, 50]:
+            ma = result_df['close'].rolling(window=window).mean()
+            # 收盘价穿过均线的距离比例
+            result_df[f'price_crossover_{window}d'] = (result_df['close'] - ma) / ma * 100
+            
+        # 填充缺失值
+        result_df = result_df.fillna(0)
+            
+        return result_df
+    
     def load_and_process_stock_data(self, 
                                    ticker: str, 
                                    source: str = 'yahoo', 
@@ -541,11 +763,12 @@ class StockDataProcessor:
         
         # 如果未指定特征列，使用所有数值列
         if feature_columns is None:
-            # 排除日期、目标列和非数值列
-            exclude_cols = ['date', 'ticker', target_column]
+            # 排除日期字符串列、目标列和非数值列，但保留日期数值特征列
+            exclude_cols = ['ticker', target_column]
             if target_column is not None:
                 exclude_cols.append(target_column)
-                
+            
+            # 包含所有数值列，包括日期转换为的数值特征
             feature_columns = [col for col in train_df.columns 
                              if col not in exclude_cols and pd.api.types.is_numeric_dtype(train_df[col])]
             
@@ -656,14 +879,17 @@ class StockDataProcessor:
         
         # 如果未指定特征列，使用所有数值列
         if feature_columns is None:
-            # 排除日期、目标列和非数值列
-            exclude_cols = ['date', 'ticker']
+            # 排除ticker和目标列，但包含日期的数值特征 
+            exclude_cols = ['ticker']
             # 只添加一次目标列到排除列表
             if target_column is not None and target_column not in exclude_cols:
                 exclude_cols.append(target_column)
                 
             feature_columns = [col for col in data_dict['train'].columns 
                              if col not in exclude_cols and pd.api.types.is_numeric_dtype(data_dict['train'][col])]
+            
+            # 过滤特征列，保持128维度
+            feature_columns = self._filter_features_to_128(data_dict['train'], feature_columns)
             
             # 输出feature_columns的列名
             logger.info(f"自动选择了 {len(feature_columns)} 个特征列: {feature_columns}")
@@ -705,6 +931,138 @@ class StockDataProcessor:
                 logger.warning(f"{split} 集没有足够的数据创建序列")
                 
         return result
+    
+    def _filter_features_to_128(self, df: pd.DataFrame, feature_columns: List[str]) -> List[str]:
+        """
+        过滤特征列，保持在128维度
+        
+        参数:
+            df: 数据框
+            feature_columns: 所有特征列
+            
+        返回:
+            过滤后的特征列列表
+        """
+        # 若特征数已经小于等于128，直接返回
+        if len(feature_columns) <= 128:
+            return feature_columns
+            
+        logger.info(f"特征数量超过128个（当前{len(feature_columns)}个），执行特征过滤...")
+        
+        # 需要移除的特征数量
+        to_remove = len(feature_columns) - 128
+        
+        # 要移除的冗余或低信息量特征
+        # 1. 先定义要删除的特征组
+        features_to_remove = []
+        
+        # 冗余技术指标对：在有ema时移除ma
+        if any(col.startswith('ema_') for col in feature_columns):
+            # 移除一些ma列，保留ema
+            ma_cols = [col for col in feature_columns if col.startswith('ma_') and not col.startswith('macd')]
+            if ma_cols:
+                # 优先移除ma_5和ma_10，因为有对应的ema
+                if 'ma_5' in ma_cols and 'ema_5' in feature_columns:
+                    features_to_remove.append('ma_5')
+                if 'ma_10' in ma_cols and 'ema_10' in feature_columns:
+                    features_to_remove.append('ma_10')
+                if 'ma_20' in ma_cols and 'ema_20' in feature_columns:
+                    features_to_remove.append('ma_20')
+        
+        # 布林带中间轨是ma_20的复制品
+        if 'bb_middle' in feature_columns and 'ma_20' in feature_columns:
+            features_to_remove.append('bb_middle')
+            
+        # 移除部分高相关性lag特征
+        lag_features = [col for col in feature_columns if '_lag_' in col]
+        if lag_features:
+            # 移除部分price类的lag_2特征（保留lag_1,lag_3,lag_5,lag_10）
+            price_lag_2 = [col for col in lag_features if any(col.startswith(p + '_lag_2') for p in ['close', 'high', 'low'])]
+            features_to_remove.extend(price_lag_2)
+        
+        # 移除一些不太常用的OHLC特征组合
+        if all(col in feature_columns for col in ['high_lag_3', 'high_lag_5']):
+            features_to_remove.append('high_lag_3')  # 移除high_lag_3，保留high_lag_5
+            
+        if all(col in feature_columns for col in ['low_lag_3', 'low_lag_5']):
+            features_to_remove.append('low_lag_3')  # 移除low_lag_3，保留low_lag_5
+        
+        # 删除一些冗余的收益率指标
+        if 'future_return_10d' in feature_columns and 'future_return_5d' in feature_columns:
+            features_to_remove.append('future_return_10d')
+            
+        # 如果还需要移除更多特征
+        if len(features_to_remove) < to_remove:
+            # 移除一些相似的技术指标
+            if all(col in feature_columns for col in ['rsi_7', 'rsi_14', 'rsi_21']):
+                features_to_remove.append('rsi_7')  # 移除rsi_7，保留rsi_14和rsi_21
+                
+            # 添加更多的复杂特征依赖关系
+            if all(col in feature_columns for col in ['volatility_5d', 'volatility_10d', 'volatility_21d']):
+                features_to_remove.append('volatility_5d')  # 移除较短周期的波动率
+                
+            # 检查技术指标相似性，优先保留关键指标
+            if 'volatility_5' in feature_columns and 'volatility_5d' in feature_columns:
+                features_to_remove.append('volatility_5')  # 优先保留我们自己计算的波动率指标
+                
+            if 'momentum_10' in feature_columns and 'momentum_10d' in feature_columns:
+                features_to_remove.append('momentum_10')  # 优先保留我们自己计算的动量指标
+                
+            if 'momentum_20' in feature_columns and 'momentum_21d' in feature_columns:
+                features_to_remove.append('momentum_20')  # 两个周期接近，移除一个
+                
+            # 移除一些量价关系指标中的冗余
+            if all(col in feature_columns for col in ['volume_ma_5', 'volume_ma_20']):
+                features_to_remove.append('volume_ma_5')  # 保留较长周期
+        
+        # 如果依然超过128，使用更激进的策略
+        if len(set(features_to_remove)) < to_remove:
+            # 移除高度相关的布林带数据
+            if all(col in feature_columns for col in ['bb_upper', 'bb_lower']):
+                features_to_remove.append('bb_lower')  # 布林带上下轨有高相关性
+                
+            # 移除冗余的未来收益率特征
+            if all(col in feature_columns for col in ['future_return_1d', 'future_return_2d']):
+                features_to_remove.append('future_return_1d')  # 保留2日收益率
+                
+            # 删除不太常用的时间特征
+            time_features = ['is_month_start', 'is_month_end', 'is_week_start', 'is_week_end']
+            for feature in time_features:
+                if feature in feature_columns and feature not in features_to_remove:
+                    features_to_remove.append(feature)
+                    if len(set(features_to_remove)) >= to_remove:
+                        break
+        
+        # 若还是不够，移除一些不太重要的特征
+        if len(set(features_to_remove)) < to_remove:
+            candidates = [
+                'upper_channel_20', 'lower_channel_20', 'middle_channel_20',  # 通道指标冗余
+                'stoch_k',  # 保留stoch_d即可
+                'volume_lag_3',  # 保留volume_lag_1, volume_lag_5
+                'date_year',  # 日期年份在短期预测中作用有限
+                'rel_volume',  # 与volume_change重复
+                'true_range',  # 与atr_14重复
+                'close_kurt_10d',  # 峰度在短期预测中作用有限
+                'close_kurt_20d'  # 峰度在短期预测中作用有限
+            ]
+            
+            for feature in candidates:
+                if feature in feature_columns and feature not in features_to_remove:
+                    features_to_remove.append(feature)
+                    if len(set(features_to_remove)) >= to_remove:
+                        break
+                        
+        # 移除重复项并确保不超过要移除的数量
+        features_to_remove = list(set(features_to_remove))[:to_remove]
+        
+        logger.info(f"将移除以下 {len(features_to_remove)} 个特征: {features_to_remove}")
+        
+        # 过滤后的特征列
+        filtered_features = [col for col in feature_columns if col not in features_to_remove]
+        
+        logger.info(f"过滤后保留 {len(filtered_features)} 个特征")
+        
+        return filtered_features
     
     def process_stock_pipeline(self, 
                              ticker: str, 
@@ -977,7 +1335,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 添加特征
-    processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return', 'volatility', 'volume'])
+    processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return', 'volatility', 'volume', 'relation'])
     if processed_data.empty:
         logger.error("添加特征后数据为空")
         sys.exit(1)

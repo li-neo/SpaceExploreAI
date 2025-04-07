@@ -197,19 +197,19 @@ class StockDataProcessor:
             result_df = self._add_lag_features(result_df)
             logger.info("已添加滞后特征")
                 
-        # 添加收益率特征
+        # 添加收益率特征（无论是否在feature_groups中都添加，确保目标列存在）
+        # 确保包含预测周期2
+        periods = [1, 2, 5, 10]
+        result_df = self._add_return_features(result_df, periods=periods)
         if 'return' in feature_groups or 'all' in feature_groups:
-            # 确保包含预测周期2
-            periods = [1, 2, 5, 10]
-            result_df = self._add_return_features(result_df, periods=periods)
             logger.info("已添加收益率特征")
             
-            # 检查是否成功创建了未来收益率列
-            future_return_cols = [col for col in result_df.columns if col.startswith('future_return_')]
-            if future_return_cols:
-                logger.info(f"创建的未来收益率列: {future_return_cols}")
-            else:
-                logger.error("未能创建任何未来收益率列！")
+        # 检查是否成功创建了未来收益率列
+        future_return_cols = [col for col in result_df.columns if col.startswith('future_return_')]
+        if future_return_cols:
+            logger.info(f"创建的未来收益率列: {future_return_cols}")
+        else:
+            logger.error("未能创建任何未来收益率列！")
             
         # 添加波动性特征
         if 'volatility' in feature_groups or 'all' in feature_groups:
@@ -711,12 +711,21 @@ class StockDataProcessor:
         if 'date' in df.columns:
             df = df.sort_values('date')
 
+        # 如果目标列不存在，尝试创建
+        if target_column not in df.columns and 'close' in df.columns:
+            logger.warning(f"目标列 {target_column} 不存在，尝试创建...")
+            # 计算未来收益率
+            if target_column.startswith('future_return_'):
+                try:
+                    # 从列名中提取日期，例如 'future_return_5d' 中的 5
+                    days = int(target_column.split('_')[-1].replace('d', ''))
+                    df[target_column] = (df['close'].shift(-days) / df['close'] - 1) * 100
+                    logger.info(f"成功创建目标列 {target_column}")
+                except Exception as e:
+                    logger.error(f"创建目标列时出错: {e}")
+        
         df.fillna(0, inplace=True)
             
-        # 移除有缺失值的行
-        # df.dropna(inplace=True)
-        # 将df输出到csv
-        
         # 分割数据集
         n = len(df)
         test_indices = int(n * (1 - test_size))
@@ -1335,7 +1344,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 添加特征
-    processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return', 'volatility', 'volume', 'relation'])
+    # processed_data = processor.add_features(clean_data, feature_groups=['technical', 'time', 'lag', 'return', 'volatility', 'volume', 'relation'])
+    
+    # 仅训练最基础特征值
+    processed_data = processor.add_features(clean_data, feature_groups=[])
     if processed_data.empty:
         logger.error("添加特征后数据为空")
         sys.exit(1)

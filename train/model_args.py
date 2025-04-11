@@ -2,64 +2,11 @@ from typing import List, Literal
 from dataclasses import dataclass
 @dataclass
 class ModelArgs():
-    """ Model Args - 模型参数配置类
-
-    1. 注意力机制参数
-        hidden_size = 256
-        num_heads = 4
-        qk_nope_head_dim = 32
-        qk_rope_head_dim = 32
-        v_head_dim = 64
-        每个注意力头的参数:
-        Q投影矩阵(不使用旋转位置编码):256 * 32 = 8,192 参数
-        K投影矩阵(不使用旋转位置编码):256 * 32 = 8,192 参数
-        Q投影矩阵(使用旋转位置编码):256 * 32 = 8,192 参数
-        K投影矩阵(使用旋转位置编码):256 * 32 = 8,192 参数
-        V投影矩阵:256 * 64 = 16,384 参数
-        输出投影矩阵:
-        输出投影:(32 + 32 + 64) * 256 = 128 * 256 = 32,768 参数
-        每个注意力层的总参数:8,192 + 8,192 + 8,192 + 8,192 + 16,384 + 32,768 = 81,920 参数
-    2. MoE (Mixture of Experts) 参数: 6555648
-        hidden_size = 256
-        moe_intermediate_size = 1024
-        num_experts = 8
-        num_experts_per_token = 2
-        每个专家包含三层个线性层:
-        上投影w1:256 * 1024 = 262,144 参数
-        门控层w3: 256 * 1024 = 262,144 参数
-        下投影w2:1024 * 256 = 262,144 参数
-        所有专家的参数:8 * (256 * 1024 * 3) = 6291456 参数
-        共享专家: 256 * 1024 = 262,144 参数
-        路由器:256 * 8 = 2,048 参数
-    3. 层归一化参数
-        每个Transformer层的层归一化:
-        每个层归一化:2 * 256 = 512 参数
-        每层的层归一化总参数:2 * 512 = 1,024 参数
-    4. 总参数计算
-        每个Transformer层的参数:
-        注意力机制:81,920 参数
-        MoE:6555648 参数
-        层归一化:1,024 参数
-        每层总计:81920 + 6555648 + 1,024 = 6638592 参数
-        所有Transformer层的参数:
-        4 * 6638592 = 26554368 参数
-    5. 输入和输出层参数
-        假设输入特征维度为64,输出维度为1:
-        输入嵌入层:64 * 256 = 16384 参数
-        输出层:256 * 1 = 256 参数
-    6. 总参数量
-        模型总参数量:
-        Transformer层:26554368 参数
-        输入嵌入层:16384 参数
-        输出层:256 参数
-        总计:26554368 + 16384 + 256 = 26571008 参数 ≈ 2657万参数 = 27M(不加llms_model)
-
-    """
     # 数据相关参数
     feature_dim: int = 64  # 特征维度,输入特征的维度大小, 对应数据的数值列64个列
     raw_data_dir: str = "data/raw"  # 原始数据目录路径
     processed_data_dir: str = "data/processed"  # 处理后数据存储目录路径
-    tickers: str = "TSLA"  # 股票代码,多个股票代码用逗号分隔,如"TSLA,AAPL,GOOG"
+    tickers: str = "*"  # 股票代码,多个股票代码用逗号分隔,如"TSLA,AAPL,GOOG"
     data_source: str = "yahoo"  # 数据源,可选"yahoo"或"alphavantage"等
     load_processed: bool = True  # 是否加载已处理的数据,True表示直接加载处理好的数据
     merge_stocks: bool = False  # 是否合并多只股票的数据,True表示将多只股票数据合并为一个数据集

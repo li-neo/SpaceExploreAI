@@ -1,0 +1,144 @@
+{
+    "version": "1.0.0",
+    "project_name": "SpaceExploreAI-0.3B",
+    "description": "金融预测AI模型",
+    
+    "model": {
+      "name": "SpaceExploreAI",
+      "type": "transformer",
+      "architecture": {
+        "feature_dim": 128,
+        "hidden_size": 512,
+        "num_layers": 4,
+        "num_heads": 4,
+        "sequence_length": 32,
+        "max_sequence_length": 128
+      },
+      
+      "attention": {
+        "attention_type": "mixed",
+        "qk_nope_head_dim": 64,
+        "qk_rope_head_dim": 64,
+        "v_head_dim": 64,
+        "attention_dropout": 0.1,
+        "attention_scale_factor": 1.0,
+        "hidden_dropout": 0.1
+      },
+      
+      "position_encoding": {
+        "rope_theta": 10000.0,
+        "rope_scaling_factor": 1.0,
+        "rope_scaling_type": "linear"
+      },
+      
+      "moe": {
+        "num_experts": 8,
+        "num_experts_per_token": 2,
+        "moe_intermediate_size": 1024
+      },
+      
+      "lora": {
+        "q_lora_rank": 0,
+        "kv_lora_rank": 64
+      },
+      
+      "normalization": {
+        "norm": "rmsnorm"
+      },
+      
+      "precision": {
+        "dtype": "float16",
+        "disable_mixed_precision": true
+      }
+    },
+    
+    "data": {
+      "raw_data_dir": "data/raw",
+      "processed_data_dir": "data/processed",
+      "tickers": "*",
+      "data_source": "*",
+      "load_processed": true,
+      "merge_stocks": false,
+      "scaler_type": "robust",
+      "test_size": 0.1,
+      "val_size": 0.1,
+      "prediction_horizon": 2,
+      "feature_groups": null,
+      "num_workers": 2
+    },
+    
+    "training": {
+      "batch_size": 16,
+      "max_batch_size": 32,
+      "prediction_type": "regression",
+      "weight_decay": 0.02,
+      "clip_grad_norm": 1.0,
+      "num_epochs": 16,
+      "patience": 3,
+      "save_dir": "models",
+      "log_interval": 5,
+      "device": "mps",
+      "resume_from": null,
+      "seed": 42,
+      "loss_fn_str": "cross_entropy",
+      "validate_every_n_batches": 1,
+      "early_stopping_min_improvement": 0.1
+    },
+    
+    "optimizer": {
+      "learning_rate": 8e-5
+    },
+    
+    "lr_scheduler": {
+      "scheduler_factor": 0.5,
+      "scheduler_patience": 2,
+      "scheduler_threshold": 1e-4,
+      "scheduler_cooldown": 0,
+      "scheduler_min_lr": 1e-5,
+      "scheduler_eps": 1e-8,
+      "scheduler_verbose": true,
+      
+      "dynamic": {
+        "use_dynamic_lr": true,
+        "trend_window_size": 3,
+        "lr_boost_factor": 2.0,
+        "stagnation_threshold": 0.01
+      },
+      
+      "cyclic": {
+        "use_cyclic_lr": false,
+        "cyclic_lr_base_size": 5,
+        "cyclic_lr_max_factor": 10.0
+      },
+      
+      "batch": {
+        "batch_lr_update": false,
+        "batch_lr_update_steps": 3,
+        "batch_lr_gamma": 0.995
+      }
+    },
+    
+    "advanced": {
+      "use_llmps": false,
+      "llmps_lambda_weight": 0.01,
+      
+      "mscnn": {
+        "base_channels": 64,
+        "ms_blocks": 1,
+        "output_dim": 64
+      },
+      
+      "t2t": {
+        "patch_size": 24,
+        "overlap": 8,
+        "embed_dim": 128,
+        "num_encoder_layers": 4,
+        "num_decoder_layers": 1,
+        "nhead": 4,
+        "dim_feedforward": 128,
+        "dropout": 0.1,
+        "mask_ratio": 0.75,
+        "output_dim": 64
+      }
+    }
+  } 

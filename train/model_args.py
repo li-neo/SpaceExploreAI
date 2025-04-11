@@ -171,7 +171,7 @@ class ModelArgs():
     early_stopping_min_improvement: float = 0.1  # 早停最小改进阈值，验证损失改进低于此值视为无改善
     
     # LLM-PS模型配置
-    use_llmps: bool = True  # 是否使用LLM-PS进行时间序列增强
+    use_llmps: bool = False  # 是否使用LLM-PS进行时间序列增强
     llmps_lambda_weight: float = 0.01  # λ值，用于平衡LLM-PS约束损失权重
     
     # MSCNN配置

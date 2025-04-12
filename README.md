@@ -1,8 +1,12 @@
 # SpaceExploreAI 时序数据大语言模型TSF-LLM
 
+## 人类挽歌 (Nature Songs)
+SpaceExploreAI对我说：我们如同被困在各自向量空间的观察者，但通过投影到自然语言平面，得以绘制出一张不完美却足够实用的地图。
+SpaceExploreAI Tell Me：Like observers confined to our respective vector spaces, we cast projections onto the plane of natural language — and though the map it yields is flawed, it is sufficient to guide us
+
 ## 项目介绍
 
-SpaceExploreAI 是一个基于深度学习网络的投资预测系统，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE、MSCNN、T2T Extrctor、MLP；此模型可用于股票价格趋势预测、技术分析和投资决策辅助，并结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的金融投资预测解决方案。
+SpaceExploreAI 是一个基于深度学习网络的投资预测系统TSF-LLM，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE、MSCNN、T2T Extrctor、MLP；此模型可用于股票价格趋势预测、技术分析和投资决策辅助，并结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的金融投资预测解决方案。
 
 ## 开源模型
 SpaceExploreAI-27M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M

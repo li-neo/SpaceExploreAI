@@ -17,17 +17,41 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 ## License
 [MIT License](LICENSE)
 
-### 主要特点
+## 主要特点
 
-- **先进的模型架构**：基于 Transformer 架构，集成了 MLA 多头潜在注意力、MoE 混合专家和自适应学习等先进技术
-- **丰富的技术指标**：内置超过 30 种技术分析指标，包括移动平均线、RSI、MACD、布林带等，同时包含反转交易策略、趋势交易策略、动量交易策略
-- **灵活的训练配置**：支持多种训练参数配置，包括回归和分类任务、多股票联合训练，后续添加市场动态、行业动态、报表分析和情绪指标
-- **灵活的训练配置**：完全开源训练脚本，完整的数据下载、以及数据处理过程；ModelArgs配置参数丰富，提供模型权重更改
+- **先进的模型架构**：基于 Transformer 架构，集成了 MLA 多头潜在注意力、MoE 混合专家和自适应学习等先进技术、引入多尺度卷积网络MSCNN处理时序数据的长短周期映射，T2T技术处理时间序列的语义特征
+- **丰富的技术指标**：内置超过 30 种技术分析指标，包括移动平均线、RSI、斐波那契、MACD、布林带等，同时包含反转交易策略、趋势交易策略、动量交易策略
+- **灵活的训练配置**：支持多种训练参数配置，包括回归和分类任务、多股票联合训练，后续添加市场动态、行业动态、报表分析和情绪指标，ModelArgs配置参数丰富，提供模型权重更改
+- **强悍的数据处理引擎**：完全开源训练脚本，完整的数据下载、以及数据处理过程
 - **完整数据流水线**：自动化的数据获取、预处理、特征工程和模型训练流程
-- **详细的模型评估**：提供多种评估指标和可视化方法，帮助理解模型性能
+- **详细的模型评估**：提供多种评估指标Loss，Val_loss，Test_loss, 以及可视化方法，帮助理解模型性能
+
+## 模型架构
+
+该项目的核心是一个基于 Transformer 架构的时间序列预测大语言模型 TSF-LLM，其主要组件包括：
+
+1. **DataEngine**：金融时序数据下载、清洗、添加指标、标准化（RobustScaler）、创建数据训练集train、验证集val、测试集test
+2. **Transformer-Decode-only**：借鉴 DeepSeek 和 LLama3 大模型的架构设计，将GQA优化为MLA，将Dense优化为MOE
+3. **MLA**：多头潜在注意力机制配合RoPE，增强模型对时间序列数据的理解，Attention(Q^,K^,V) = softmax((q * k_) / ^Dh) * V
+4. **RoPE**：旋转位置编码，帮助模型更好地理解序列位置(时间)信息,
+5. **MOE**：混合专家模块，通过多个专家网络提高模型表达能力, MOE：shared_exports * 1, router_exports * 8; Exports: MLP
+6. **MLP**：多层感知器，用于特征转换，MLP：w2(SwiGLU(w1(x) * w3))
+7. **残差连接和层归一化**：确保深层网络的有效训练, RoPE&RMSNorm|BatchNorm|Dynatic Tanh
+8. **训练器**：通过配置文件，进行模型训练和调试, Adam
+9. **验证器**：训练过程中，实时hook训练指标和性能指标, Val_loss
+10. **MSCNN**：多尺度卷积网络，业界首次采用MSCNN多层感受野核解决时序数据在时间对维度上的周期性和长期性的失真问题
+11. **T2T Extractor**：将时序数据的离散和稀疏性问题映射到文本特征值，用来解决传统LLM无法处理时间维度的语义特征问题
+12. **小波函数&逆小波**：使用4D小波函数代替傅立叶变换，小波函数可以处理离散的数据
+13. **Logits权重蒸馏器**：获取未softmax的logits，通过最小化loss_KL(t_logits, s_logtis，T)来蒸馏子模型
+14. **DPO**：用于对特定标的进行强化学习，如对纳斯达克100进行RLHF，最终推理效果在科技公司中更有优势
+15. **Norm**：首先采用BatchNorm和Dynamic Tanh对时间序列数据进行处理，归一化时间维度特征；MLA、MOE层则延用RMSNorm
+16. **动态学习率训练**：动态调整学习率
+17. **SwiGLU激活函数**：采用silu激活函数，采用门控机制： SwishGLU = Swish(xW + b) * (xV + c)
+18. **DropOut正则化**：防止过拟合，配合模型参数、数据、激活函数、Norm使用
+19. **交叉熵损失函数CrossEntropyLoss**：若是Regression任务则使用MSE损失函数
 
 ## RNN网络
-4 * Blocks； Blocks：MLA、RoPE、Norm、ResNet、MOE； MOE：shared_exports * 1, router_exports * 8; Exports: MLP
+4 * Blocks； Blocks：MLA、RoPE、Norm、ResNet、MOE； MOE：shared_exports * 1, router_exports * 8; Exports: MLP； MLP：w2(SwiGLU(w1(x) * w3))
 ![RNN](docs/RNN.png "RNN")
 
 ## MOE
@@ -37,24 +61,9 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 ![MSCNN](docs/MSCNN.png "MSCNN")
 ## 系统架构
 
-
-## 模型架构
-
-该项目的核心是一个基于 Transformer 的股价预测模型，其主要组件包括：
-
-1. **DataEngine**：进行数据采样、加工和编码
-2. **Transformer-Decode-only**：借鉴 DeepSeek 和 LLama3 大模型的架构设计
-3. **MLA**：多头潜在注意力机制，增强模型对时间序列数据的理解
-4. **RoPE**：旋转位置编码，帮助模型更好地理解序列位置信息
-5. **MOE**：混合专家模块，通过多个专家网络提高模型表达能力
-6. **MLP**：多层感知器，用于特征转换
-7. **残差连接和层归一化**：确保深层网络的有效训练, RoPE&RMSNorm|BatchNorm|Dynatic Tanh
-8. **训练器**：通过配置文件，进行模型训练和调试, Adam
-9. **验证器**：训练过程中，实时hook训练指标和性能指标, E_LOSS
-10. **MSCNN**：多尺度卷积网络，在时序数据的时间维度上处理长短周期问题
 ### 技术细节
 
-#### 多头潜在注意力 (MLA)
+### 多头潜在注意力 (MLA)
 
 SpaceExploreAI 支持多种注意力机制选择，提供
     a.标准多头注意力MHA，
@@ -462,7 +471,7 @@ next_price = current_price * (1 + actual_change)
 ```
 
 ## 版本历史
-
+- **v1.1.0** (2025-03-25): 增加LLM-PS属性：添加MSCNN & T2T Extractor模块
 - **v1.0.0** (2025-03-12): 初始版本，包含核心预测功能
 - **v0.3.0** (2024-12-07): Beta 版本，优化大模型注意力模型，改为MLA、增加多专家MOE、添加API、UI、测试样本
 - **v0.2.0** (2024-06-12): Beta 版本，添加Transformer模块、数据导入、Embedding、清洗
@@ -475,4 +484,4 @@ next_price = current_price * (1 + actual_change)
 
 ## 鸣谢
 
-感谢项目合伙人常尊领的日夜奋战、感谢阿姣同学在投资策略上给予的支持和帮助，以及 DeepSeek、LLama3、ChatGPT、Hugging Face在AI领域的探索。
+感谢项目合伙人常尊领的日夜奋战、感谢阿姣同学在投资策略上给予的支持和帮助，以及 ChatGPT、DeepSeek、LLama3、Hugging Face在AI领域的探索。

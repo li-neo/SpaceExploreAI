@@ -2,7 +2,7 @@
 
 ## 人类挽歌 (Nature Songs)
 SpaceExploreAI对我说：我们如同被困在各自向量空间的观察者，但通过投影到自然语言平面，得以绘制出一张不完美却足够实用的地图。
-SpaceExploreAI Tell Me：Like observers confined to our respective vector spaces, we cast projections onto the plane of natural language — and though the map it yields is flawed, it is sufficient to guide us
+SpaceExploreAI Told Me：Like observers confined to our respective vector spaces, we cast projections onto the plane of natural language — and though the map it yields is flawed, it is sufficient to guide us
 
 ## 项目介绍
 

@@ -6,6 +6,10 @@ SpaceExploreAI 是一个基于深度学习网络的投资预测系统，采用�
 
 ## 开源模型
 SpaceExploreAI-27M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M
+
+## 开源对齐数据集-SFT&DPO
+微调和测试数据集开源地址（部分Data）： https://huggingface.co/datasets/NEOAI/Stocks
+
 ## 免责声明
 SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资标的、创建投资策略；支持商业运行但自负责任，如需要获得商业支持，请联系liguangxian1995@gmail.com
 
@@ -23,6 +27,7 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 - **详细的模型评估**：提供多种评估指标和可视化方法，帮助理解模型性能
 
 ## RNN网络
+4 * Blocks； Blocks：MLA、RoPE、Norm、ResNet、MOE； MOE：shared_exports * 1, router_exports * 8; Exports: MLP
 ![RNN](docs/RNN.png "RNN")
 
 ## MOE
@@ -32,40 +37,20 @@ SpaceExploreAI可以提供投资决策建议、量化交易；支持筛选投资
 ![MSCNN](docs/MSCNN.png "MSCNN")
 ## 系统架构
 
-```
-SpaceExploreAI/
-├── data/                  # 数据相关模块
-│   ├── download_data.py   # 股票数据下载工具
-│   ├── data_processor.py  # 数据处理工具
-│   └── technical_indicators.py  # 技术指标计算
-├── model/                 # 模型定义
-│   ├── transformer.py     # Transformer 模型架构
-│   ├── attention.py       # 注意力机制实现
-│   └── moe.py             # 混合专家模型实现
-├── train/                 # 训练相关
-│   ├── train_model.py     # 训练脚本
-│   ├── trainer.py         # 训练器实现
-│   └── README.md          # 训练指南
-├── evaluate/              # 评估工具
-│   └── evaluate_model.py  # 模型评估脚本
-└── examples/              # 示例
-│   └── quick_start.py     # 快速入门示例
-├── llmps_model/           # 多尺度卷积网络
-```
 
 ## 模型架构
 
 该项目的核心是一个基于 Transformer 的股价预测模型，其主要组件包括：
 
-1. **Tokenizer**：进行数据采样、加工和编码
-2. **Transformer**：借鉴 DeepSeek 和 LLama3 大模型的架构设计
+1. **DataEngine**：进行数据采样、加工和编码
+2. **Transformer-Decode-only**：借鉴 DeepSeek 和 LLama3 大模型的架构设计
 3. **MLA**：多头潜在注意力机制，增强模型对时间序列数据的理解
 4. **RoPE**：旋转位置编码，帮助模型更好地理解序列位置信息
 5. **MOE**：混合专家模块，通过多个专家网络提高模型表达能力
 6. **MLP**：多层感知器，用于特征转换
-7. **残差连接和层归一化**：确保深层网络的有效训练
-8. **训练器**：通过配置文件，进行模型训练和调试
-9. **验证器**：训练过程中，实时hook训练指标和性能指标
+7. **残差连接和层归一化**：确保深层网络的有效训练, RoPE&RMSNorm|BatchNorm|Dynatic Tanh
+8. **训练器**：通过配置文件，进行模型训练和调试, Adam
+9. **验证器**：训练过程中，实时hook训练指标和性能指标, E_LOSS
 10. **MSCNN**：多尺度卷积网络，在时序数据的时间维度上处理长短周期问题
 ### 技术细节
 

@@ -9,7 +9,7 @@ class ModelArgs():
     tickers: str = "*"  # 股票代码,多个股票代码用逗号分隔,如"TSLA,AAPL,GOOG"
     data_source: str = "yahoo"  # 数据源,可选"yahoo"或"alphavantage"等
     load_processed: bool = True  # 是否加载已处理的数据,True表示直接加载处理好的数据
-    merge_stocks: bool = False  # 是否合并多只股票的数据,True表示将多只股票数据合并为一个数据集
+    merge_stocks: bool = True  # 是否合并多只股票的数据,True表示将多只股票数据合并为一个数据集
     scaler_type: str = "robust"  # 数据缩放器类型,可选"standard"(标准化)、"minmax"(最小最大化)或"robust"(稳健缩放)
     test_size: float = 0.1  # 测试集比例,占总数据的10%
     val_size: float = 0.1  # 验证集比例,占总数据的10%
@@ -73,7 +73,7 @@ class ModelArgs():
     # 训练相关参数
     weight_decay: float = 0.02  # 权重衰减,L2正则化系数,用于防止过拟合
     clip_grad_norm: float = 1.0  # 梯度裁剪范数,限制梯度的最大范数,防止梯度爆炸
-    num_epochs: int = 16  # 训练轮次,完整遍历训练集的次数
+    num_epochs: int = 32  # 训练轮次,完整遍历训练集的次数
     patience: int = 3  # 早停耐心,验证集性能不再提升的轮次数,超过此值则停止训练
     save_dir: str = "models"  # 模型保存目录,训练好的模型权重保存位置
     model_name: str = "SpaceExploreAI"  # 模型名称,保存模型时使用的名称前缀

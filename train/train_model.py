@@ -323,8 +323,7 @@ def train_model(args: ModelArgs):
             threshold_mode='rel',
             cooldown=train_config["scheduler_cooldown"],
             min_lr=train_config["scheduler_min_lr"],
-            eps=train_config["scheduler_eps"],
-            verbose=train_config["scheduler_verbose"]
+            eps=train_config["scheduler_eps"]
         )
         train_config["scheduler_type"] = "epoch"  # 轮次级调度器
 

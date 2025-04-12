@@ -94,7 +94,6 @@ class StockModelTrainer:
             "scheduler_cooldown": 0,        # 冷却期
             "scheduler_min_lr": 1e-6,       # 最小学习率
             "scheduler_eps": 1e-8,          # 精度
-            "scheduler_verbose": True,      # 是否输出日志
             
             # 动态学习率调整配置
             "use_dynamic_lr": False,        # 是否使用动态学习率调整
@@ -146,8 +145,7 @@ class StockModelTrainer:
                 threshold_mode='rel',
                 cooldown=self.config['scheduler_cooldown'],
                 min_lr=self.config['scheduler_min_lr'],
-                eps=self.config['scheduler_eps'],
-                verbose=self.config['scheduler_verbose']
+                eps=self.config['scheduler_eps']
             )
         else:
             self.scheduler = scheduler

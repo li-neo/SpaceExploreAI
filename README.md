@@ -319,23 +319,49 @@ Below is a comprehensive evaluation of the model on multiple stock tickers:
 
 As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
 
-### Visualization of Prediction Results
+### 预测结果可视化
 
-The following visualizations show the model's prediction performance on different stocks:
+以下是模型在不同股票上的预测表现可视化：
 
-**Apple (AAPL) Stock Prediction**:
-![AAPL Prediction](results/predict/AAPL_regression_predictions.png)
-![AAPL Scatter Plot](results/predict/AAPL_regression_scatter.png)
+<div align="center">
+  <h4>苹果 (AAPL) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/AAPL_regression_predictions.png" alt="AAPL 预测" width="450"/></td>
+      <td><img src="results/predict/AAPL_regression_scatter.png" alt="AAPL 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
 
-**Tesla (TSLA) Stock Prediction**:
-![TSLA Prediction](results/predict/TSLA_regression_predictions.png)
-![TSLA Scatter Plot](results/predict/TSLA_regression_scatter.png)
+  <h4>特斯拉 (TSLA) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/TSLA_regression_predictions.png" alt="TSLA 预测" width="450"/></td>
+      <td><img src="results/predict/TSLA_regression_scatter.png" alt="TSLA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
 
-**NVIDIA (NVDA) Stock Prediction**:
-![NVDA Prediction](results/predict/NVDA_regression_predictions.png)
-![NVDA Scatter Plot](results/predict/NVDA_regression_scatter.png)
+  <h4>英伟达 (NVDA) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/NVDA_regression_predictions.png" alt="NVDA 预测" width="450"/></td>
+      <td><img src="results/predict/NVDA_regression_scatter.png" alt="NVDA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
+</div>
 
-The blue line represents the actual values, while the red line represents the model's predictions. The scatter plots show the correlation between predicted and actual values, with the diagonal line representing perfect prediction.
+蓝线表示实际值，红线表示模型的预测值。散点图显示了预测值与实际值之间的相关性，对角线代表完美预测。
 
 ## Project Vision
 
@@ -844,23 +870,49 @@ Below is a comprehensive evaluation of the model on multiple stock tickers:
 
 As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
 
-### Visualization of Prediction Results
+### 预测结果可视化
 
-The following visualizations show the model's prediction performance on different stocks:
+以下是模型在不同股票上的预测表现可视化：
 
-**Apple (AAPL) Stock Prediction**:
-![AAPL Prediction](results/predict/AAPL_regression_predictions.png)
-![AAPL Scatter Plot](results/predict/AAPL_regression_scatter.png)
+<div align="center">
+  <h4>苹果 (AAPL) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/AAPL_regression_predictions.png" alt="AAPL 预测" width="450"/></td>
+      <td><img src="results/predict/AAPL_regression_scatter.png" alt="AAPL 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
 
-**Tesla (TSLA) Stock Prediction**:
-![TSLA Prediction](results/predict/TSLA_regression_predictions.png)
-![TSLA Scatter Plot](results/predict/TSLA_regression_scatter.png)
+  <h4>特斯拉 (TSLA) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/TSLA_regression_predictions.png" alt="TSLA 预测" width="450"/></td>
+      <td><img src="results/predict/TSLA_regression_scatter.png" alt="TSLA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
 
-**NVIDIA (NVDA) Stock Prediction**:
-![NVDA Prediction](results/predict/NVDA_regression_predictions.png)
-![NVDA Scatter Plot](results/predict/NVDA_regression_scatter.png)
+  <h4>英伟达 (NVDA) 股票预测</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/NVDA_regression_predictions.png" alt="NVDA 预测" width="450"/></td>
+      <td><img src="results/predict/NVDA_regression_scatter.png" alt="NVDA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
+</div>
 
-The blue line represents the actual values, while the red line represents the model's predictions. The scatter plots show the correlation between predicted and actual values, with the diagonal line representing perfect prediction.
+蓝线表示实际值，红线表示模型的预测值。散点图显示了预测值与实际值之间的相关性，对角线代表完美预测。
 
 ## 项目愿景
 
@@ -1033,7 +1085,7 @@ A: 是的。多头潜在注意力和旋转位置编码使模型能捕捉时间�
 A: 预测结果通常是归一化的价格变动或概率分布：
 
 - **回归预测**：返回归一化的未来收益率，需要使用相同的缩放器反变换为实际价格变动
-- **分类预测**：返回各类别的概率分布，例如[0.2, 0.7, 0.1]表示下跌、上涨和横盘的概率
+- **分类预测**：返回概率分布的各类别，例如[0.2, 0.7, 0.1]表示下跌、上涨和横盘的概率
 
 您可以使用以下代码反变换回实际价格变动：
 

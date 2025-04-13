@@ -1,30 +1,18 @@
 # SpaceExploreAI 时序数据大语言模型TSF-LLM
 
 <div align="center">
-  <img src="docs/space.JPG" alt="SpaceExploreAI Logo" width="180"/>
   <p>
     <a href="#english">English</a> | 
     <a href="#chinese">中文</a>
   </p>
   
-
-  <div style="display: flex; justify-content: center; gap: 20px;">
-    <div>
-      <img src="docs/neo.JPG" alt="Core Developer" width="120"/>
-      <br/>
-      <small>Neo</small>
-    </div>
-    <div>
-      <img src="docs/chang.JPG" alt="Core Developer" width="120"/>
-      <br/>
-      <small>Chrislarn</small>
-    </div>
-    <div>
-      <img src="docs/cong.JPG" alt="Core Developer" width="120"/>
-      <br/>
-      <small>Cong</small>
-    </div>
+  <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+    <img src="docs/space.JPG" alt="SpaceExploreAI Logo" width="60"/>
+    <img src="docs/neo.JPG" alt="Core Developer" width="60"/>
+    <img src="docs/chang.JPG" alt="Core Developer" width="60"/>
+    <img src="docs/cong.JPG" alt="Core Developer" width="60"/>
   </div>
+  <p><small>SpaceExplore: Neo, Chrislarn, Cong, Song</small></p>
 
   <p>
     <a href="https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M"><img src="https://img.shields.io/badge/Hugging%20Face-Model%20Page-yellow" alt="Hugging Face"></a>

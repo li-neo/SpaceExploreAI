@@ -305,6 +305,38 @@ Typical evaluation indicators include:
 - MAE (Mean Absolute Error)
 - Direction accuracy (Accuracy of stock price direction prediction)
 
+### Latest Evaluation Results
+
+Below is a comprehensive evaluation of the model on multiple stock tickers:
+
+| 股票代码 | MSE | RMSE | MAE | 方向准确率 |
+|:-------:|:----:|:----:|:---:|:----------:|
+| AAPL | 2.4019 | 1.5498 | 1.1941 | 65.03% |
+| TSLA | 2.0877 | 1.4449 | 1.1009 | 69.53% |
+| NVDA | 2.0017 | 1.4148 | 1.1464 | 66.76% |
+| GOOG | 3.4042 | 1.8451 | 1.4648 | 67.05% |
+| QQQ | 3.4753 | 1.8642 | 1.5103 | 70.52% |
+
+As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
+
+### Visualization of Prediction Results
+
+The following visualizations show the model's prediction performance on different stocks:
+
+**Apple (AAPL) Stock Prediction**:
+![AAPL Prediction](results/predict/AAPL_regression_predictions.png)
+![AAPL Scatter Plot](results/predict/AAPL_regression_scatter.png)
+
+**Tesla (TSLA) Stock Prediction**:
+![TSLA Prediction](results/predict/TSLA_regression_predictions.png)
+![TSLA Scatter Plot](results/predict/TSLA_regression_scatter.png)
+
+**NVIDIA (NVDA) Stock Prediction**:
+![NVDA Prediction](results/predict/NVDA_regression_predictions.png)
+![NVDA Scatter Plot](results/predict/NVDA_regression_scatter.png)
+
+The blue line represents the actual values, while the red line represents the model's predictions. The scatter plots show the correlation between predicted and actual values, with the diagonal line representing perfect prediction.
+
 ## Project Vision
 
 According to the project introduction document, the ultimate goal of SpaceExploreAI stock price prediction large model is:
@@ -337,8 +369,8 @@ python -m SpaceExploreAI.train.train_model --tickers AAPL --sequence_length 60 -
 
 #### Key Results
 
-- **MSE**: 0.0023
-- **Direction accuracy**: 68.7%
+- **MSE**: 2.4019
+- **Direction accuracy**: 65.03%
 - **Average training time**: 15 minutes (single GPU)
 
 ### Case 2: Multi-stock Joint Training
@@ -798,6 +830,38 @@ python -m SpaceExploreAI.train.train_model --resume_from ./models/stock_transfor
 - MAE (平均绝对误差)
 - Direction accuracy (股价方向预测准确率)
 
+### Latest Evaluation Results
+
+Below is a comprehensive evaluation of the model on multiple stock tickers:
+
+| 股票代码 | MSE | RMSE | MAE | 方向准确率 |
+|:-------:|:----:|:----:|:---:|:----------:|
+| AAPL | 2.4019 | 1.5498 | 1.1941 | 65.03% |
+| TSLA | 2.0877 | 1.4449 | 1.1009 | 69.53% |
+| NVDA | 2.0017 | 1.4148 | 1.1464 | 66.76% |
+| GOOG | 3.4042 | 1.8451 | 1.4648 | 67.05% |
+| QQQ | 3.4753 | 1.8642 | 1.5103 | 70.52% |
+
+As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
+
+### Visualization of Prediction Results
+
+The following visualizations show the model's prediction performance on different stocks:
+
+**Apple (AAPL) Stock Prediction**:
+![AAPL Prediction](results/predict/AAPL_regression_predictions.png)
+![AAPL Scatter Plot](results/predict/AAPL_regression_scatter.png)
+
+**Tesla (TSLA) Stock Prediction**:
+![TSLA Prediction](results/predict/TSLA_regression_predictions.png)
+![TSLA Scatter Plot](results/predict/TSLA_regression_scatter.png)
+
+**NVIDIA (NVDA) Stock Prediction**:
+![NVDA Prediction](results/predict/NVDA_regression_predictions.png)
+![NVDA Scatter Plot](results/predict/NVDA_regression_scatter.png)
+
+The blue line represents the actual values, while the red line represents the model's predictions. The scatter plots show the correlation between predicted and actual values, with the diagonal line representing perfect prediction.
+
 ## 项目愿景
 
 根据项目介绍文档，SpaceExploreAI股票价格预测大模型的最终目标是：
@@ -830,8 +894,8 @@ python -m SpaceExploreAI.train.train_model --tickers AAPL --sequence_length 60 -
 
 #### 关键结果
 
-- **MSE**: 0.0023
-- **方向准确率**: 68.7%
+- **MSE**: 2.4019
+- **方向准确率**: 65.03%
 - **平均训练时间**: 15分钟（单GPU）
 
 ### 案例2：多股票联合训练

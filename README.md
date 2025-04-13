@@ -7,9 +7,6 @@
     <a href="#chinese">中文</a>
   </p>
   
-  <p>
-    <a href="https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M"><img src="https://img.shields.io/badge/Hugging%20Face-Model%20Page-yellow" alt="Hugging Face"></a>
-  </p>
 
   <div style="display: flex; justify-content: center; gap: 20px;">
     <div>
@@ -17,19 +14,22 @@
       <br/>
       <small>Neo</small>
     </div>
-    
     <div>
       <img src="docs/chang.JPG" alt="Core Developer" width="120"/>
       <br/>
       <small>Chrislarn</small>
     </div>
-    
     <div>
       <img src="docs/cong.JPG" alt="Core Developer" width="120"/>
       <br/>
       <small>Cong</small>
     </div>
   </div>
+
+  <p>
+    <a href="https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M"><img src="https://img.shields.io/badge/Hugging%20Face-Model%20Page-yellow" alt="Hugging Face"></a>
+  </p>
+
 </div>
 
 ---

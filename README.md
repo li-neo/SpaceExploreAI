@@ -77,6 +77,89 @@ The core of this project is a time series prediction large language model based 
 18. **DropOut regularization**: Prevent overfitting, used with model parameters, data, activation function, Norm
 19. **Cross Entropy Loss Function**: Use MSE loss function if it's Regression task
 
+
+## Model Effectiveness
+
+The model has been widely tested against different stocks and market conditions, showing good prediction ability:
+
+- **Regression task**: Predict direction and magnitude of future price movement
+- **Classification task**: Predict probability of stock price up/down/flat
+
+Typical evaluation indicators include:
+- MSE (Mean Squared Error)
+- RMSE (Root Mean Squared Error)
+- MAE (Mean Absolute Error)
+- Direction accuracy (Accuracy of stock price direction prediction)
+
+### Latest Evaluation Results
+
+Below is a comprehensive evaluation of the model on multiple stock tickers:
+
+| Stock | MSE | RMSE | MAE | Acc |
+|:-------:|:----:|:----:|:---:|:----------:|
+| AAPL | 2.4019 | 1.5498 | 1.1941 | 65.03% |
+| TSLA | 2.0877 | 1.4449 | 1.1009 | 69.53% |
+| NVDA | 2.0017 | 1.4148 | 1.1464 | 66.76% |
+| GOOG | 3.4042 | 1.8451 | 1.4648 | 67.05% |
+| QQQ | 3.4753 | 1.8642 | 1.5103 | 70.52% |
+
+As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
+
+### Prediction View
+
+Here is a visualization of the model’s prediction performance on different stocks:
+
+<div align="center">
+  <h4>AAPL Stock Prediction</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/AAPL_regression_predictions.png" alt="AAPL 预测" width="450"/></td>
+      <td><img src="results/predict/AAPL_regression_scatter.png" alt="AAPL 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">TSF</td>
+      <td align="center">Scatter plot of actual and predicted values</td>
+    </tr>
+  </table>
+
+  <h4>TSLA Stock Prediction</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/TSLA_regression_predictions.png" alt="TSLA 预测" width="450"/></td>
+      <td><img src="results/predict/TSLA_regression_scatter.png" alt="TSLA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">TSF</td>
+      <td align="center">Scatter plot of actual and predicted values</td>
+    </tr>
+  </table>
+
+  <h4>NVDA Stock Prediction</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/NVDA_regression_predictions.png" alt="NVDA 预测" width="450"/></td>
+      <td><img src="results/predict/NVDA_regression_scatter.png" alt="NVDA 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">TSF</td>
+      <td align="center">Scatter plot of actual and predicted values</td>
+    </tr>
+  </table>
+</div>
+
+The blue line represents the actual values ​​and the red line represents the model's predictions. The scatter plot shows the correlation between the predicted and actual values, with the diagonal line representing a perfect prediction.
+
+## Project Vision
+
+According to the project introduction document, the ultimate goal of SpaceExploreAI stock price prediction large model is:
+
+1. Achieve direct interaction capability similar to large language models, users can directly ask stock-related questions
+2. Have the ability to obtain real-time stock information and perform technical analysis, fundamental analysis, and quantitative analysis
+3. Provide real-time investment advice and investment strategies
+
+The current version focuses on time series prediction capability, and future versions will further enhance interaction and real-time analysis capability.
+
+
 ## RNN Network
 4 * Blocks; Blocks: MLA, RoPE, Norm, ResNet, MOE; MOE: shared_exports * 1, router_exports * 8; Exports: MLP; MLP: w2(SwiGLU(w1(x) * w3))
 ![RNN](docs/RNN.png "RNN")
@@ -292,86 +375,6 @@ python -m SpaceExploreAI.train.train_model --moe_intermediate_size 512 --num_exp
 python -m SpaceExploreAI.train.train_model --resume_from ./models/stock_transformer_last.pt
 ```
 
-## Model Effectiveness
-
-The model has been widely tested against different stocks and market conditions, showing good prediction ability:
-
-- **Regression task**: Predict direction and magnitude of future price movement
-- **Classification task**: Predict probability of stock price up/down/flat
-
-Typical evaluation indicators include:
-- MSE (Mean Squared Error)
-- RMSE (Root Mean Squared Error)
-- MAE (Mean Absolute Error)
-- Direction accuracy (Accuracy of stock price direction prediction)
-
-### Latest Evaluation Results
-
-Below is a comprehensive evaluation of the model on multiple stock tickers:
-
-| 股票代码 | MSE | RMSE | MAE | 方向准确率 |
-|:-------:|:----:|:----:|:---:|:----------:|
-| AAPL | 2.4019 | 1.5498 | 1.1941 | 65.03% |
-| TSLA | 2.0877 | 1.4449 | 1.1009 | 69.53% |
-| NVDA | 2.0017 | 1.4148 | 1.1464 | 66.76% |
-| GOOG | 3.4042 | 1.8451 | 1.4648 | 67.05% |
-| QQQ | 3.4753 | 1.8642 | 1.5103 | 70.52% |
-
-As shown above, the model achieves direction prediction accuracy ranging from 65% to over 70%, with QQQ (NASDAQ ETF) showing the highest direction accuracy at 70.52%.
-
-### 预测结果可视化
-
-以下是模型在不同股票上的预测表现可视化：
-
-<div align="center">
-  <h4>苹果 (AAPL) 股票预测</h4>
-  <table>
-    <tr>
-      <td><img src="results/predict/AAPL_regression_predictions.png" alt="AAPL 预测" width="450"/></td>
-      <td><img src="results/predict/AAPL_regression_scatter.png" alt="AAPL 散点图" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center">时间序列预测</td>
-      <td align="center">实际值与预测值散点图</td>
-    </tr>
-  </table>
-
-  <h4>特斯拉 (TSLA) 股票预测</h4>
-  <table>
-    <tr>
-      <td><img src="results/predict/TSLA_regression_predictions.png" alt="TSLA 预测" width="450"/></td>
-      <td><img src="results/predict/TSLA_regression_scatter.png" alt="TSLA 散点图" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center">时间序列预测</td>
-      <td align="center">实际值与预测值散点图</td>
-    </tr>
-  </table>
-
-  <h4>英伟达 (NVDA) 股票预测</h4>
-  <table>
-    <tr>
-      <td><img src="results/predict/NVDA_regression_predictions.png" alt="NVDA 预测" width="450"/></td>
-      <td><img src="results/predict/NVDA_regression_scatter.png" alt="NVDA 散点图" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center">时间序列预测</td>
-      <td align="center">实际值与预测值散点图</td>
-    </tr>
-  </table>
-</div>
-
-蓝线表示实际值，红线表示模型的预测值。散点图显示了预测值与实际值之间的相关性，对角线代表完美预测。
-
-## Project Vision
-
-According to the project introduction document, the ultimate goal of SpaceExploreAI stock price prediction large model is:
-
-1. Achieve direct interaction capability similar to large language models, users can directly ask stock-related questions
-2. Have the ability to obtain real-time stock information and perform technical analysis, fundamental analysis, and quantitative analysis
-3. Provide real-time investment advice and investment strategies
-
-The current version focuses on time series prediction capability, and future versions will further enhance interaction and real-time analysis capability.
 
 ## Contribution Guide
 

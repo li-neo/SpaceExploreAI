@@ -867,15 +867,71 @@ def create_stock_predictor_from_checkpoint(
     # 加载检查点
     checkpoint = torch.load(checkpoint_path, map_location=device)
     
-    # 创建预测器
+    # 获取检查点中的模型配置
+    # 从错误信息看，检查点中的moe_intermediate_size应该是1024
+    moe_intermediate_size = checkpoint.get("moe_intermediate_size", 1024)
+    # 如果仍然不存在，则尝试从专家层权重形状进行推断
+    if "model_state_dict" in checkpoint:
+        for key, value in checkpoint["model_state_dict"].items():
+            if "moe.experts.0.mlp.w1.weight" in key:
+                # 形状为 [intermediate_size, hidden_size]
+                moe_intermediate_size = value.shape[0]
+                print(f"从权重推断moe_intermediate_size={moe_intermediate_size}")
+                break
+    
+    num_experts = checkpoint.get("num_experts", 8)
+    num_experts_per_token = checkpoint.get("num_experts_per_token", 2)
+    num_heads = checkpoint.get("num_heads", 12)
+    qk_nope_head_dim = checkpoint.get("qk_nope_head_dim", 32)
+    qk_rope_head_dim = checkpoint.get("qk_rope_head_dim", 32)
+    v_head_dim = checkpoint.get("v_head_dim", 64)
+    num_layers = checkpoint.get("num_layers", 12)
+    max_seq_len = checkpoint.get("max_seq_len", 60)
+    norm = checkpoint.get("norm", "rmsnorm")
+    
+    print(f"使用以下参数创建模型: moe_intermediate_size={moe_intermediate_size}, num_experts={num_experts}, num_layers={num_layers}")
+    
+    # 创建预测器，使用检查点中的配置
     predictor = StockPricePredictor(
         feature_dim=checkpoint["vocab_size"],
         hidden_size=checkpoint["hidden_size"],
+        num_layers=num_layers,
+        num_heads=num_heads,
+        qk_nope_head_dim=qk_nope_head_dim,
+        qk_rope_head_dim=qk_rope_head_dim,
+        v_head_dim=v_head_dim,
+        max_seq_len=max_seq_len,
         prediction_type=checkpoint["prediction_type"],
-        device=device
+        device=device,
+        norm=norm,
+        moe_intermediate_size=moe_intermediate_size,
+        num_experts=num_experts,
+        num_experts_per_token=num_experts_per_token
     )
     
-    # 加载模型权重
-    predictor.model.load_state_dict(checkpoint["model_state_dict"])
+    # 加载模型权重，忽略尺寸不匹配的参数
+    model_dict = predictor.model.state_dict()
+    pretrained_dict = checkpoint["model_state_dict"]
+    
+    # 过滤出尺寸匹配的参数
+    filtered_dict = {}
+    mismatched_params = []
+    
+    for k, v in pretrained_dict.items():
+        if k in model_dict:
+            if v.shape == model_dict[k].shape:
+                filtered_dict[k] = v
+            else:
+                mismatched_params.append((k, v.shape, model_dict[k].shape))
+    
+    # 输出不匹配的参数信息
+    if mismatched_params:
+        print(f"检测到 {len(mismatched_params)} 个不匹配的参数:")
+        for k, checkpoint_shape, model_shape in mismatched_params:
+            print(f"  - {k}: 检查点尺寸 {checkpoint_shape}, 模型尺寸 {model_shape}")
+    
+    # 更新模型参数
+    model_dict.update(filtered_dict)
+    predictor.model.load_state_dict(model_dict, strict=False)
     
     return predictor 

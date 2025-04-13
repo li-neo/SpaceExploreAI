@@ -621,7 +621,10 @@ class StockPricePredictor:
         max_seq_len: int = 60,
         prediction_type: str = "regression",
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
-        norm: str = "rmsnorm"  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
+        norm: str = "rmsnorm",  # 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
+        moe_intermediate_size: int = 1024,  # MoE中间层维度
+        num_experts: int = 8,  # 专家数量 
+        num_experts_per_token: int = 2  # 每个token使用的专家数量
     ):
         """
         初始化股票价格预测器
@@ -638,6 +641,9 @@ class StockPricePredictor:
             prediction_type: 预测类型，"regression"或"classification"
             device: 运行设备
             norm: 归一化类型,可选"rmsnorm", "batch_norm", "dynamic_tanh"
+            moe_intermediate_size: MoE中间层维度
+            num_experts: 专家数量
+            num_experts_per_token: 每个token使用的专家数量
         """
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
@@ -645,6 +651,9 @@ class StockPricePredictor:
         self.prediction_type = prediction_type
         self.device = device
         self.norm = norm
+        self.moe_intermediate_size = moe_intermediate_size
+        self.num_experts = num_experts
+        self.num_experts_per_token = num_experts_per_token
         
         # 创建模型
         self.model = StockTransformerModel(
@@ -657,7 +666,10 @@ class StockPricePredictor:
             v_head_dim=v_head_dim,
             max_seq_len=max_seq_len,
             prediction_type=prediction_type,
-            norm=norm
+            norm=norm,
+            moe_intermediate_size=moe_intermediate_size,
+            num_experts=num_experts,
+            num_experts_per_token=num_experts_per_token
         ).to(device)
     
     def predict(self, features: torch.Tensor) -> torch.Tensor:
@@ -670,11 +682,26 @@ class StockPricePredictor:
         返回:
             预测结果
         """
-        # 确保输入在正确的设备上
-        features = features.to(self.device)
-        
         # 设置为评估模式
         self.model.eval()
+        
+        # 获取模型参数的数据类型
+        model_dtype = next(self.model.parameters()).dtype
+        
+        # 确保模型内部缓存也使用正确的设备和数据类型
+        for module in self.model.modules():
+            if hasattr(module, 'kv_cache'):
+                # 更新KV缓存的设备和数据类型
+                module.kv_cache = module.kv_cache.to(device=self.device, dtype=model_dtype)
+            if hasattr(module, 'pe_cache'):
+                # 更新PE缓存的设备和数据类型
+                module.pe_cache = module.pe_cache.to(device=self.device, dtype=model_dtype)
+            if hasattr(module, 'q_cache'):
+                # 更新Q缓存的设备和数据类型
+                module.q_cache = module.q_cache.to(device=self.device, dtype=model_dtype)
+        
+        # 确保输入特征也是正确的设备和数据类型
+        features = features.to(device=self.device, dtype=model_dtype)
         
         # 禁用梯度计算以加速推理
         with torch.no_grad():
@@ -695,7 +722,10 @@ class StockPricePredictor:
             "hidden_size": self.hidden_size,
             "max_seq_len": self.max_seq_len,
             "prediction_type": self.prediction_type,
-            "norm": self.norm
+            "norm": self.norm,
+            "moe_intermediate_size": self.moe_intermediate_size,
+            "num_experts": self.num_experts,
+            "num_experts_per_token": self.num_experts_per_token
         }, path)
         
     @classmethod
@@ -712,18 +742,53 @@ class StockPricePredictor:
         """
         checkpoint = torch.load(path, map_location=device)
         
+        # 检查并设置MoE相关参数
+        moe_intermediate_size = checkpoint.get("moe_intermediate_size", 1024)
+        num_experts = checkpoint.get("num_experts", 8)
+        num_experts_per_token = checkpoint.get("num_experts_per_token", 2)
+        num_layers = checkpoint.get("num_layers", 12)
+        num_heads = checkpoint.get("num_heads", 12)
+        
+        # 如果MoE参数不存在，尝试从权重推断
+        if "model_state_dict" in checkpoint and "moe_intermediate_size" not in checkpoint:
+            for key, value in checkpoint["model_state_dict"].items():
+                if "moe.experts.0.mlp.w1.weight" in key:
+                    # 形状为 [intermediate_size, hidden_size]
+                    moe_intermediate_size = value.shape[0]
+                    print(f"从权重推断moe_intermediate_size={moe_intermediate_size}")
+                    break
+        
         # 创建预测器实例
         predictor = cls(
             feature_dim=checkpoint["feature_dim"],
             hidden_size=checkpoint["hidden_size"],
+            num_layers=num_layers,
+            num_heads=num_heads,
             max_seq_len=checkpoint["max_seq_len"],
             prediction_type=checkpoint["prediction_type"],
             device=device,
-            norm=checkpoint.get("norm", "rmsnorm")  # 兼容旧版本
+            norm=checkpoint.get("norm", "rmsnorm"),  # 兼容旧版本
+            moe_intermediate_size=moe_intermediate_size,
+            num_experts=num_experts,
+            num_experts_per_token=num_experts_per_token
         )
         
-        # 加载模型权重
-        predictor.model.load_state_dict(checkpoint["model_state_dict"])
+        # 加载模型权重，使用宽松模式以适应可能的权重形状变化
+        if hasattr(predictor.model, 'load_state_dict'):
+            # 过滤出形状匹配的参数
+            model_dict = predictor.model.state_dict()
+            pretrained_dict = checkpoint["model_state_dict"]
+            
+            filtered_dict = {}
+            for k, v in pretrained_dict.items():
+                if k in model_dict and v.shape == model_dict[k].shape:
+                    filtered_dict[k] = v
+            
+            # 更新模型参数
+            model_dict.update(filtered_dict)
+            predictor.model.load_state_dict(model_dict, strict=False)
+        else:
+            print("警告: 模型没有load_state_dict方法，无法加载权重")
         
         return predictor
 

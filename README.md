@@ -1,29 +1,35 @@
 # SpaceExploreAI 时序数据大语言模型TSF-LLM
 
 <div align="center">
-  <img src="docs/space.jpg" alt="SpaceExploreAI Logo" width="180"/>
+  <img src="docs/space.JPG" alt="SpaceExploreAI Logo" width="180"/>
   <p>
     <a href="#english">English</a> | 
     <a href="#chinese">中文</a>
   </p>
   
   <p>
-    <img src="docs/neo.jpg" alt="Core Developer" width="120"/>
-    <br/>
-    <small>Neo</small>
+    <a href="https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M"><img src="https://img.shields.io/badge/Hugging%20Face-Model%20Page-yellow" alt="Hugging Face"></a>
   </p>
 
-  <p>
-    <img src="docs/chang.jpg" alt="Core Developer" width="120"/>
-    <br/>
-    <small>Chrislarn</small>
-  </p>
-
-  <p>
-    <img src="docs/cong.jpg" alt="Core Developer" width="120"/>
-    <br/>
-    <small>Cong</small>
-  </p>
+  <div style="display: flex; justify-content: center; gap: 20px;">
+    <div>
+      <img src="docs/neo.JPG" alt="Core Developer" width="120"/>
+      <br/>
+      <small>Neo</small>
+    </div>
+    
+    <div>
+      <img src="docs/chang.JPG" alt="Core Developer" width="120"/>
+      <br/>
+      <small>Chrislarn</small>
+    </div>
+    
+    <div>
+      <img src="docs/cong.JPG" alt="Core Developer" width="120"/>
+      <br/>
+      <small>Cong</small>
+    </div>
+  </div>
 </div>
 
 ---
@@ -95,6 +101,7 @@ The core of this project is a time series prediction large language model based 
 
 ## Loss Training Curve
 ![LOSS](docs/Val_Loss.png "LOSS")
+
 
 ## System Architecture
 

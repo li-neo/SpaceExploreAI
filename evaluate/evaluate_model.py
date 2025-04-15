@@ -313,7 +313,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="评估股票预测模型")
     
     parser.add_argument("--model_path", default="./models/SpaceExploreAI_best.pt", type=str, help="模型检查点路径")
-    parser.add_argument("--test_data", default="TSLA,NVDA,AAPL,GOOG,QQQ", type=str, help="测试数据股票代码，多个用逗号分隔")
+    parser.add_argument("--test_data", default="BILI,PDD,BABA,ASML,TSM,KO,F", type=str, help="测试数据股票代码，多个用逗号分隔")
     parser.add_argument("--processed_data_dir", type=str, default="./data/processed/test/", help="处理后数据目录")
     parser.add_argument("--output_dir", type=str, default="./results/predict", help="结果输出目录")
     parser.add_argument("--batch_size", type=int, default=32, help="批量大小")

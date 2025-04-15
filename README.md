@@ -145,6 +145,31 @@ Here is a visualization of the model’s prediction performance on different sto
       <td align="center">Scatter plot of actual and predicted values</td>
     </tr>
   </table>
+
+  <h4>ASML Stock Prediction (Has generalizability to the U.S. stock market)</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/ASML_regression_predictions.png" alt="ASML 预测" width="450"/></td>
+      <td><img src="results/predict/ASML_regression_scatter.png" alt="ASML 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">TSF</td>
+      <td align="center">Scatter plot of actual and predicted values</td>
+    </tr>
+  </table>
+
+  <h4>PDD Stock Prediction (Don't generalizability to the stock-china market)</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/ASML_regression_predictions.png" alt="PDD 预测" width="450"/></td>
+      <td><img src="results/predict/ASML_regression_scatter.png" alt="PDD 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">TSF</td>
+      <td align="center">Scatter plot of actual and predicted values</td>
+    </tr>
+  </table>
+
 </div>
 
 The blue line represents the actual values ​​and the red line represents the model's predictions. The scatter plot shows the correlation between the predicted and actual values, with the diagonal line representing a perfect prediction.
@@ -913,6 +938,31 @@ As shown above, the model achieves direction prediction accuracy ranging from 65
       <td align="center">实际值与预测值散点图</td>
     </tr>
   </table>
+
+  <h4>ASML 股票预测 (ASML的数据未曾出现在训练集，对于美股市场的公司具有泛化能力)</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/ASML_regression_predictions.png" alt="ASML 预测" width="450"/></td>
+      <td><img src="results/predict/ASML_regression_scatter.png" alt="ASML 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
+
+  <h4>PDD 股票预测 (ASML的数据未曾出现在训练集，对于中概股缺乏泛化能力，需要添加中概股进行数据训练或者SFT)</h4>
+  <table>
+    <tr>
+      <td><img src="results/predict/PDD_regression_predictions.png" alt="PDD 预测" width="450"/></td>
+      <td><img src="results/predict/PDD_regression_scatter.png" alt="PDD 散点图" width="400"/></td>
+    </tr>
+    <tr>
+      <td align="center">时间序列预测</td>
+      <td align="center">实际值与预测值散点图</td>
+    </tr>
+  </table>
+
 </div>
 
 蓝线表示实际值，红线表示模型的预测值。散点图显示了预测值与实际值之间的相关性，对角线代表完美预测。

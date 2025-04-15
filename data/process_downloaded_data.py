@@ -44,7 +44,7 @@ class DataArgs:
     # 数据源配置
     source: str = "yahoo"
 
-    tickers: Optional[List[str]] = None
+    tickers: Optional[List[str]] = ['BILI', 'PDD', 'BABA', 'AMD', 'ASML', 'TSM', 'KO', 'F']
     
 
 def process_all_downloaded_stocks(
@@ -223,7 +223,13 @@ def process_specific_stocks(
     tickers,
     raw_data_dir=DEFAULT_RAW_DIR,
     processed_data_dir=DEFAULT_PROCESSED_DIR,
-    **kwargs
+    test_size=0.1,
+    val_size=0.1,
+    sequence_length=32,
+    prediction_horizon=2,
+    feature_groups=None,
+    batch_size=32,
+    scaler_type="robust"
 ):
     """
     处理指定的股票列表
@@ -234,30 +240,174 @@ def process_specific_stocks(
         processed_data_dir: 处理后数据存储目录
         **kwargs: 其他参数传递给 process_all_downloaded_stocks
     """
+    # # 创建数据处理器
+    # processor = StockDataProcessor(
+    #     raw_data_dir=raw_data_dir,
+    #     processed_data_dir=processed_data_dir,
+    #     scaler_type=kwargs.get('scaler_type', 'robust')
+    # )
+    
+    # # 批量处理指定的股票
+    # return processor.batch_process_stocks(
+    #     tickers=tickers,
+    #     source='yahoo',  # 假设数据来源是yahoo
+    #     test_size=kwargs.get('test_size', 0.1),
+    #     val_size=kwargs.get('val_size', 0.1),
+    #     sequence_length=kwargs.get('sequence_length', 32),
+    #     prediction_horizon=kwargs.get('prediction_horizon', 2),
+    #     feature_groups=kwargs.get('feature_groups', ['technical', 'time', 'lag', 'return', 'volatility']),
+    #     save_data=True
+    #)
+     
+    if feature_groups is None:
+        feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
+    
+    logger.info(f"处理参数: 序列长度={sequence_length}, 预测周期={prediction_horizon}, 特征组={feature_groups}")
+    
     # 创建数据处理器
     processor = StockDataProcessor(
         raw_data_dir=raw_data_dir,
         processed_data_dir=processed_data_dir,
-        scaler_type=kwargs.get('scaler_type', 'robust')
+        scaler_type=scaler_type
     )
     
-    # 批量处理指定的股票
-    return processor.batch_process_stocks(
-        tickers=tickers,
-        source='yahoo',  # 假设数据来源是yahoo
-        test_size=kwargs.get('test_size', 0.1),
-        val_size=kwargs.get('val_size', 0.1),
-        sequence_length=kwargs.get('sequence_length', 32),
-        prediction_horizon=kwargs.get('prediction_horizon', 2),
-        feature_groups=kwargs.get('feature_groups', ['technical', 'time', 'lag', 'return', 'volatility']),
-        save_data=True
-    )
+    # 获取所有股票目录
+    # try:
+    #     tickers = [d for d in os.listdir(raw_data_dir) if os.path.isdir(os.path.join(raw_data_dir, d))]
+    #     logger.info(f"找到 {len(tickers)} 个股票目录")
+    # except FileNotFoundError:
+    #     logger.error(f"找不到原始数据目录: {raw_data_dir}")
+    #     return {}
+    
+    # if not tickers:
+    #     logger.warning("没有找到任何股票数据目录")
+    #     return {}
+    
+    # 处理结果
+    results = {}
+    
+    # 批量处理每个股票
+    for ticker in tickers:
+        logger.info(f"开始处理 {ticker} 的数据")
+        
+        try:
+            # 查找该股票的所有CSV文件
+            ticker_dir = os.path.join(raw_data_dir, ticker)
+            csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+            
+            if not csv_files:
+                logger.warning(f"{ticker} 目录下没有找到CSV文件")
+                continue
+                
+            # 选择最新的CSV文件
+            latest_file = sorted(csv_files)[-1]
+            file_path = os.path.join(ticker_dir, latest_file)
+            
+            # 读取数据
+            df = pd.read_csv(file_path)
+            
+            # 检查数据是否为空
+            if df.empty:
+                logger.warning(f"{ticker} 的数据为空")
+                continue
+                
+            # 添加ticker列
+            df['ticker'] = ticker
+            
+            # 清洗数据
+            clean_df = processor.clean_stock_data(df)
+            
+            # 检查清洗后的数据是否为空
+            if clean_df.empty:
+                logger.warning(f"{ticker} 清洗后的数据为空")
+                continue
+                
+            # 添加特征
+            processed_df = processor.add_features(clean_df, feature_groups)
+
+            # 输出processed_df维度信息
+            logger.info(f"{ticker} processed_df维度信息: {processed_df.shape}")
+            
+            # 检查目标列是否存在
+            target_column = f'future_return_{prediction_horizon}d'
+            if target_column not in processed_df.columns:
+                logger.error(f"{ticker} 数据中不存在目标列 {target_column}！")
+                future_return_cols = [col for col in processed_df.columns if col.startswith('future_return_')]
+                if future_return_cols:
+                    logger.info(f"可用的未来收益率列: {future_return_cols}")
+                    # 使用第一个可用的未来收益率列
+                    target_column = future_return_cols[0]
+                    logger.info(f"改用 {target_column} 作为目标列")
+                    # 从列名中提取预测周期
+                    try:
+                        prediction_horizon = int(target_column.split('_')[-1].replace('d', ''))
+                        logger.info(f"更新预测周期为: {prediction_horizon}")
+                    except:
+                        logger.warning(f"无法从列名 {target_column} 提取预测周期")
+                else:
+                    logger.error(f"{ticker} 数据中不存在任何未来收益率列，跳过处理")
+                    continue
+            
+            # 准备数据集分割
+            splits = processor.prepare_dataset_splits(
+                processed_df,
+                test_size=test_size,
+                val_size=val_size,
+                sequence_length=sequence_length,
+                prediction_horizon=prediction_horizon,
+                target_column=target_column
+            )
+            
+            # 缩放特征
+            scaled_splits = processor.scale_features(
+                splits['train'],
+                splits['val'],
+                splits['test'],
+                target_column=target_column
+            )
+            
+            # 创建序列数据集
+            sequences = processor.create_sequence_datasets(
+                scaled_splits,
+                target_column=target_column,
+                sequence_length=sequence_length
+            )
+            
+            # 检查序列数据
+            for split, (X, y) in sequences.items():
+                if len(y) == 0:
+                    logger.error(f"{ticker} {split} 目标值数组为空！")
+                    # 如果目标值为空，跳过保存
+                    continue
+            
+            # 保存处理后的数据和缩放器
+            processor.save_processed_data(ticker, splits, scaled_splits, sequences)
+            processor.save_scalers(ticker)
+            
+            # 创建DataLoader
+            dataloaders = create_dataloaders(sequences, batch_size=batch_size)
+            
+            # 记录结果
+            results[ticker] = {
+                'splits': splits,
+                'scaled_splits': scaled_splits,
+                'sequences': sequences,
+                'dataloaders': dataloaders
+            }
+            
+            logger.info(f"{ticker} 处理完成，sequences维度信息: {sequences['train'][0].shape}, {sequences['train'][1].shape}")
+            
+        except Exception as e:
+            logger.error(f"处理 {ticker} 时出错: {str(e)}", exc_info=True)
+    
+    logger.info(f"所有股票处理完成，成功处理 {len(results)} 个股票")
+    return results
 
 if __name__ == "__main__":
     args = DataArgs()
     
     # 设置特征组
-    feature_groups = ['technical', 'time', 'lag', 'return', 'volatility', 'volume']
+    feature_groups = ['time', 'lag', 'return', 'volatility', 'volume']
     
     if args.tickers:
         # 处理指定的股票

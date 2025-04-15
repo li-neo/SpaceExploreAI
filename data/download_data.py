@@ -94,7 +94,7 @@ def download_stocks(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="下载股票历史价格数据")
-    stock = "AAPL,MSFT,GOOG,AMZN,TSLA,NVDA,QQQ,INTC"
+    stock = "BILI,PDD,BABA,AMD,ASML,TSM,KO,F"
     
     parser.add_argument("--tickers", type=str, default=stock, help="股票代码，多个用逗号分隔")
     parser.add_argument("--start_date", type=str, default="2010-03-11", help="开始日期，格式为'YYYY-MM-DD'")

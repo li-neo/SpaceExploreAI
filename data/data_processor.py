@@ -182,9 +182,9 @@ class StockDataProcessor:
                 result_df = self.tech_processor.process_stock_data(result_df, technical_indicators)
         
         # 添加日期数值特征
-        if 'date' in result_df.columns:
-            result_df = self._add_date_numeric_features(result_df)
-            logger.info("已添加日期数值特征")
+        # if 'date' in result_df.columns:
+        #     result_df = self._add_date_numeric_features(result_df)
+        #     logger.info("已添加日期数值特征")
                 
         # 添加时间特征
         if ('time' in feature_groups or 'all' in feature_groups) and 'date' in result_df.columns:
@@ -661,10 +661,10 @@ class StockDataProcessor:
         """
         # 构建股票数据文件路径
         if source == 'yahoo':
-            ticker_files = [f for f in os.listdir(os.path.join(self.raw_data_dir, "price_history", ticker)) 
+            ticker_files = [f for f in os.listdir(os.path.join(self.raw_data_dir, ticker)) 
                           if f.endswith('.csv') and 'yahoo' in f]
         else:
-            ticker_files = [f for f in os.listdir(os.path.join(self.raw_data_dir, "price_history", ticker)) 
+            ticker_files = [f for f in os.listdir(os.path.join(self.raw_data_dir, ticker)) 
                           if f.endswith('.csv') and 'alphavantage' in f]
                           
         if not ticker_files:
@@ -1242,6 +1242,11 @@ class StockDataProcessor:
         results = {}
         
         for ticker in tqdm(tickers, desc="处理股票数据"):
+            # 检查是否存在目录，否则进行创建
+            ticker_dir = os.path.join(self.processed_data_dir, ticker)
+            if not os.path.exists(ticker_dir):
+                os.makedirs(ticker_dir, exist_ok=True)
+                
             result = self.process_stock_pipeline(ticker, source, **kwargs)
             results[ticker] = result
             

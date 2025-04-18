@@ -790,17 +790,23 @@ class StockDataProcessor:
         
         result = {'train': train_scaled}
         
-        # 转换验证集
-        if val_df is not None:
+        # 转换验证集（如果不为空）
+        if val_df is not None and not val_df.empty:
             val_scaled = val_df.copy()
             val_scaled[feature_columns] = self.scalers['features'].transform(val_df[feature_columns])
             result['val'] = val_scaled
+        else:
+            logger.info("验证集为空或不存在，跳过缩放")
+            result['val'] = pd.DataFrame()  # 添加空的DataFrame作为占位符
             
-        # 转换测试集
-        if test_df is not None:
+        # 转换测试集（如果不为空）
+        if test_df is not None and not test_df.empty:
             test_scaled = test_df.copy()
             test_scaled[feature_columns] = self.scalers['features'].transform(test_df[feature_columns])
             result['test'] = test_scaled
+        else:
+            logger.info("测试集为空或不存在，跳过缩放")
+            result['test'] = pd.DataFrame()  # 添加空的DataFrame作为占位符
             
         # 如果目标列存在且为数值，也缩放目标
         if target_column in train_df.columns and pd.api.types.is_numeric_dtype(train_df[target_column]):
@@ -810,11 +816,11 @@ class StockDataProcessor:
             target_train = train_df[target_column].values.reshape(-1, 1)
             result['train'][target_column] = self.scalers['target'].fit_transform(target_train).flatten()
             
-            if val_df is not None and target_column in val_df.columns:
+            if val_df is not None and not val_df.empty and target_column in val_df.columns:
                 target_val = val_df[target_column].values.reshape(-1, 1)
                 result['val'][target_column] = self.scalers['target'].transform(target_val).flatten()
                 
-            if test_df is not None and target_column in test_df.columns:
+            if test_df is not None and not test_df.empty and target_column in test_df.columns:
                 target_test = test_df[target_column].values.reshape(-1, 1)
                 result['test'][target_column] = self.scalers['target'].transform(target_test).flatten()
                 
@@ -879,12 +885,21 @@ class StockDataProcessor:
         
         # 检查目标列是否存在于数据框中
         for split, df in data_dict.items():
+            if df.empty:
+                logger.info(f"{split} 集为空，跳过检查")
+                continue
+                
             if target_column in df.columns:
                 non_null_count = df[target_column].count()
                 total_count = len(df)
                 logger.info(f"{split} 集中 {target_column} 列: 非空值数量={non_null_count}, 总行数={total_count}, 非空比例={non_null_count/total_count:.2%}")
             else:
                 logger.error(f"{split} 集中不存在 {target_column} 列！")
+        
+        # 确保训练集存在且不为空
+        if 'train' not in data_dict or data_dict['train'].empty:
+            logger.error("训练集不存在或为空，无法创建序列数据集")
+            return {}
         
         # 如果未指定特征列，使用所有数值列
         if feature_columns is None:
@@ -906,12 +921,25 @@ class StockDataProcessor:
         result = {}
         
         for split, df in data_dict.items():
+            # 如果数据集为空，跳过处理
+            if df.empty:
+                logger.info(f"{split} 集为空，跳过序列创建")
+                # 添加空序列作为占位符
+                result[split] = (np.array([]).reshape(0, sequence_length, len(feature_columns)), np.array([]))
+                continue
+                
             sequences = []
             targets = []
             
             # 检查目标列是否存在
             if target_column not in df.columns:
                 logger.error(f"{split} 集中不存在目标列 {target_column}，无法创建目标值")
+                continue
+                
+            # 确保数据集长度足够创建至少一个序列
+            if len(df) <= sequence_length:
+                logger.warning(f"{split} 集长度 ({len(df)}) 小于或等于序列长度 ({sequence_length})，无法创建序列")
+                result[split] = (np.array([]).reshape(0, sequence_length, len(feature_columns)), np.array([]))
                 continue
                 
             for i in range(len(df) - sequence_length):
@@ -937,7 +965,8 @@ class StockDataProcessor:
                 if len(sequences) != len(targets):
                     logger.error(f"{split} 集的序列数量 ({len(sequences)}) 与目标值数量 ({len(targets)}) 不匹配！")
             else:
-                logger.warning(f"{split} 集没有足够的数据创建序列")
+                logger.warning(f"{split} 集未能创建任何序列")
+                result[split] = (np.array([]).reshape(0, sequence_length, len(feature_columns)), np.array([]))
                 
         return result
     

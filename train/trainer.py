@@ -751,7 +751,8 @@ class StockModelTrainer:
             "epochs_trained": self.epochs_trained,
             "vocab_size": self.model.vocab_size,
             "hidden_size": self.model.hidden_size,
-            "prediction_type": self.model.prediction_type
+            "prediction_type": self.model.prediction_type,
+            "feature_dim": self.model.vocab_size,  # 添加feature_dim，与vocab_size保持一致
         }
         
         # 如果调度器存在且是可序列化的，保存其状态

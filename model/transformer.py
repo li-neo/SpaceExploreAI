@@ -725,7 +725,8 @@ class StockPricePredictor:
             "norm": self.norm,
             "moe_intermediate_size": self.moe_intermediate_size,
             "num_experts": self.num_experts,
-            "num_experts_per_token": self.num_experts_per_token
+            "num_experts_per_token": self.num_experts_per_token,
+            "vocab_size": self.feature_dim,  # 添加vocab_size，与feature_dim保持一致
         }, path)
         
     @classmethod
@@ -746,8 +747,8 @@ class StockPricePredictor:
         moe_intermediate_size = checkpoint.get("moe_intermediate_size", 1024)
         num_experts = checkpoint.get("num_experts", 8)
         num_experts_per_token = checkpoint.get("num_experts_per_token", 2)
-        num_layers = checkpoint.get("num_layers", 12)
-        num_heads = checkpoint.get("num_heads", 12)
+        num_layers = checkpoint.get("num_layers", 4)
+        num_heads = checkpoint.get("num_heads", 4)
         
         # 如果MoE参数不存在，尝试从权重推断
         if "model_state_dict" in checkpoint and "moe_intermediate_size" not in checkpoint:
@@ -758,13 +759,24 @@ class StockPricePredictor:
                     print(f"从权重推断moe_intermediate_size={moe_intermediate_size}")
                     break
         
+        # 获取feature_dim，如果不存在则尝试使用vocab_size
+        feature_dim = checkpoint.get("feature_dim")
+        if feature_dim is None:
+            feature_dim = checkpoint.get("vocab_size")
+            if feature_dim is not None:
+                print(f"使用vocab_size({feature_dim})作为feature_dim")
+            else:
+                # 如果两个都不存在，使用默认值64
+                feature_dim = 64
+                print(f"未找到feature_dim或vocab_size，使用默认值{feature_dim}")
+        
         # 创建预测器实例
         predictor = cls(
-            feature_dim=checkpoint["feature_dim"],
+            feature_dim=feature_dim,
             hidden_size=checkpoint["hidden_size"],
             num_layers=num_layers,
             num_heads=num_heads,
-            max_seq_len=checkpoint["max_seq_len"],
+            max_seq_len=checkpoint.get("max_seq_len", 128),  # 提供默认值
             prediction_type=checkpoint["prediction_type"],
             device=device,
             norm=checkpoint.get("norm", "rmsnorm"),  # 兼容旧版本

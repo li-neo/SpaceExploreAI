@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 import sys
-from data_processor import StockDataProcessor, create_dataloaders
+from data.data_processor import StockDataProcessor, create_dataloaders
 from log.logger import get_logger
 from dataclasses import dataclass
 from typing import List, Optional
@@ -108,7 +108,7 @@ def process_all_downloaded_stocks(
         
         try:
             # 查找该股票的所有CSV文件
-            ticker_dir = os.path.join(raw_data_dir, ticker)
+            ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
             csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
             
             if not csv_files:
@@ -292,7 +292,7 @@ def process_specific_stocks(
         
         try:
             # 查找该股票的所有CSV文件
-            ticker_dir = os.path.join(raw_data_dir, ticker)
+            ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
             csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
             
             if not csv_files:

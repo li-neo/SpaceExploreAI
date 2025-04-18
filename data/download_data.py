@@ -60,6 +60,25 @@ def download_yahoo_finance_data(
         data.to_csv(output_file, index=False)
         logger.info(f"成功保存数据到: {output_file}，共 {len(data)} 行")
         
+        # 处理可能出现的无效第二行（全是ticker的行）
+        try:
+            # 读取CSV文件
+            df = pd.read_csv(output_file)
+            
+            # 检查是否有无效行（例如，第二行中每个单元格都是股票代码）
+            invalid_rows = df.apply(lambda row: all(str(val) == ticker for val in row if pd.notna(val) and val != ""), axis=1)
+            
+            if invalid_rows.any():
+                # 删除无效行
+                df = df[~invalid_rows].reset_index(drop=True)
+                logger.info(f"删除了 {invalid_rows.sum()} 行无效数据")
+                
+                # 重新保存文件
+                df.to_csv(output_file, index=False)
+                logger.info(f"已修复并重新保存文件: {output_file}")
+        except Exception as e:
+            logger.warning(f"尝试修复CSV文件时出错: {str(e)}")
+            
         return True
     except Exception as e:
         logger.error(f"下载股票数据时出错: {ticker}, 错误: {str(e)}")

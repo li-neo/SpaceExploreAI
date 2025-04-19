@@ -15,8 +15,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入项目内模块
 from model.transformer import StockPricePredictor
-from data.download_data import download_yahoo_finance_data
-from data.process_downloaded_data import DataArgs, process_specific_stocks
+from data.finance.download_data import download_yahoo_finance_data
+from data.finance.process_downloaded_data import DataArgs, process_specific_stocks
 from train.model_args import ModelArgs
 
 # 设置日志
@@ -148,7 +148,7 @@ class StockPredictor:
             
             # 保存训练数据到磁盘以便稍后加载
             X_train = sequences['train'][0]
-            y_train = sequences['train'][1]
+            y_train = results[ticker]['targets']['train']
             
             X_path = os.path.join(self.processed_data_dir, f"{ticker}_X_train.npy")
             y_path = os.path.join(self.processed_data_dir, f"{ticker}_y_train.npy")
@@ -208,29 +208,16 @@ class StockPredictor:
                 X_noisy = X.copy()
                 X_noisy += np.random.normal(0, noise_level, X_noisy.shape)
                 
-                # 获取最后一个样本的索引
-                last_sample_idx = X_noisy.shape[0] - 1
-                
                 # 转换为张量并移动到设备
-                # 分批处理以避免超过最大批量大小限制
-                batch_size = 32  # 最大批量大小
-                all_outputs = []
+                X_tensor = torch.tensor(X_noisy, dtype=torch.float32).to(self.device)
                 
-                # 处理完整批次
-                for start_idx in range(0, X_noisy.shape[0], batch_size):
-                    end_idx = min(start_idx + batch_size, X_noisy.shape[0])
-                    batch = X_noisy[start_idx:end_idx]
-                    batch_tensor = torch.tensor(batch, dtype=torch.float32).to(self.device)
+                # 执行预测
+                self.predictor.eval()
+                with torch.no_grad():
+                    outputs = self.predictor.predict(X_tensor)
                     
-                    with torch.no_grad():
-                        batch_outputs = self.predictor.predict(batch_tensor)
-                        all_outputs.append(batch_outputs.cpu().numpy())
-                
-                # 合并所有批次的输出
-                outputs = np.concatenate(all_outputs)
-                
                 # 获取最后一天的预测结果（最后一个样本的预测值）
-                prediction = outputs[last_sample_idx] * 100  # 转换为百分比
+                prediction = outputs[-1].item() * 100  # 转换为百分比
                 predictions.append(prediction)
             
             # 计算平均值和方差
@@ -288,15 +275,8 @@ class StockPredictor:
                     all_failed = False
                     result_with_data = result
                 
-                # 预测值 - 限制预测值在合理范围内
+                # 预测值
                 prediction = result['mean_prediction']
-                
-                # 检查预测值是否在合理范围内，如果超出则警告并限制
-                if abs(prediction) > 10:
-                    original_prediction = prediction
-                    prediction = max(min(prediction, 10), -10)  # 限制在-10%到10%之间
-                    self.logger.warning(f"{ticker} 原始预测值 {original_prediction:.4f}% 超出合理范围，已限制为 {prediction:.4f}%")
-                
                 # 获取情感方向
                 sentiment = "看涨 📈" if prediction > 0 else "看跌 📉"
                 # 计算信心水平
@@ -323,9 +303,9 @@ class StockPredictor:
                 # 计算标准差
                 std_dev = math.sqrt(result['variance']) if result['variance'] > 0 else 0
                 
-                # 计算95%置信区间 (同样限制在合理范围内)
-                lower_bound = max(prediction - 1.96 * std_dev, -10)
-                upper_bound = min(prediction + 1.96 * std_dev, 10)
+                # 计算95%置信区间
+                lower_bound = prediction - 1.96 * std_dev
+                upper_bound = prediction + 1.96 * std_dev
                 
                 # 预测区间
                 interval = f"[{lower_bound:.4f}%, {upper_bound:.4f}%]"
@@ -354,15 +334,8 @@ class StockPredictor:
                 print(f"\n❌ 预测失败 - {results['error']}")
                 return
                 
-            # 预测值 - 限制预测值在合理范围内
+            # 预测值
             prediction = results['mean_prediction']
-            
-            # 检查预测值是否在合理范围内，如果超出则警告并限制
-            if abs(prediction) > 10:
-                original_prediction = prediction
-                prediction = max(min(prediction, 10), -10)  # 限制在-10%到10%之间
-                self.logger.warning(f"{results['ticker']} 原始预测值 {original_prediction:.4f}% 超出合理范围，已限制为 {prediction:.4f}%")
-            
             # 获取情感方向
             sentiment = "看涨 📈" if prediction > 0 else "看跌 📉"
             # 计算信心水平
@@ -389,9 +362,9 @@ class StockPredictor:
             # 计算标准差
             std_dev = math.sqrt(results['variance']) if results['variance'] > 0 else 0
             
-            # 计算95%置信区间 (同样限制在合理范围内)
-            lower_bound = max(prediction - 1.96 * std_dev, -10)
-            upper_bound = min(prediction + 1.96 * std_dev, 10)
+            # 计算95%置信区间
+            lower_bound = prediction - 1.96 * std_dev
+            upper_bound = prediction + 1.96 * std_dev
             
             # 预测区间
             interval = f"[{lower_bound:.4f}%, {upper_bound:.4f}%]"

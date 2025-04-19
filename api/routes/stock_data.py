@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from pydantic import BaseModel, Field
 import yfinance as yf
 
-from ...data.technical_indicators import TechnicalIndicatorProcessor
+from ...data.finance.technical_indicators import TechnicalIndicatorProcessor
 from .auth import User, get_current_active_user
 
 # 配置日志

@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 import sys
-from data.data_processor import StockDataProcessor, create_dataloaders
+from data.finance.data_processor import StockDataProcessor, create_dataloaders
 from log.logger import get_logger
 from dataclasses import dataclass
 from typing import List, Optional

@@ -15,8 +15,8 @@ import yfinance as yf
 import torch
 
 from ...train.trainer import create_stock_predictor_from_checkpoint
-from ...data.technical_indicators import TechnicalIndicatorProcessor
-from ...data.data_processor import StockDataProcessor
+from ...data.finance.technical_indicators import TechnicalIndicatorProcessor
+from ...data.finance.data_processor import StockDataProcessor
 from .auth import User, get_current_active_user
 
 # 配置日志

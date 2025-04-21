@@ -23,8 +23,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 # 导入ModelArgs和数据处理相关模块
 from train.model_args import ModelArgs
-from data.data_processor import StockDataProcessor
-from data.technical_indicators import TechnicalIndicatorProcessor
+from data.finance.data_processor import StockDataProcessor
+from data.finance.technical_indicators import TechnicalIndicatorProcessor
 
 # 定义目标目录
 TARGET_DIR = "/Users/li/AIProject/HFSpaceExploreAI/SpaceExploreAI-Small-Base-Regression-5M"

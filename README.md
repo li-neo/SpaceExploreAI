@@ -610,7 +610,7 @@ SpaceExploreAI对我说：我们如同被困在各自向量空间的观察者，
 
 ## 项目介绍
 
-SpaceExploreAI 是一个基于深度学习网络的投资预测系统TSF-LLM，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE、MSCNN、T2T Extrctor、MLP；此模型可用于股票价格趋势预测、技术分析和投资决策辅助，并结合了现代深度学习技术和传统金融分析方法，包括技术指标、时间序列分析等，提供了一个全面的金融投资预测解决方案。
+SpaceExploreAI 是一个基于深度学习网络的时间序列系统TSF-LLM，采用最先进的 Transformer 架构设计，更是吸取了DeepSeep-V3、LLama3的多种设计结构，如MLA、MOE、MSCNN、T2T Extrctor、MLP；此模型现在已经解耦为统一的时序数据预测TSF平台，可以用于时序数据的预测，包括金融、水利、温度、流量监控、风险预测等此模型可用于股票价格趋势预测。目前已经训练了金融领域的预测模型，后续将逐步扩展到其他工业级领域，如电力、交通、能源等。
 
 ## 开源模型
 SpaceExploreAI-27M模型开源地址： https://huggingface.co/NEOAI/SpaceExploreAI-Small-Base-Regression-27M

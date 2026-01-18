@@ -1,0 +1,48 @@
+2026-01-18 22:43:50,571 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 使用 rmsnorm 作为归一化方法
+2026-01-18 22:43:50,576 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 1. input_projection的权重shape: torch.Size([256, 64])
+2026-01-18 22:43:50,582 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 2. rotary_emb的权重shape: torch.Size([128, 16])
+2026-01-18 22:43:50,582 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 使用 RMSNorm 作为归一化层
+2026-01-18 22:43:50,582 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 3. pre_attn_norm的权重shape: torch.Size([256])
+2026-01-18 22:43:50,583 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 4. attention的权重shape: 多头注意力模块，包含多个子权重
+2026-01-18 22:43:50,583 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.out_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,583 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_a.weight shape: torch.Size([64, 256])
+2026-01-18 22:43:50,583 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_b.weight shape: torch.Size([384, 32])
+2026-01-18 22:43:50,583 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.q_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 5. moe.router.router.weight的权重shape: torch.Size([8, 256])
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w1.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w2.weight的权重shape: torch.Size([256, 1024])
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 7. moe.experts[0].mlp.w3.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 使用 RMSNorm 作为归一化层
+2026-01-18 22:43:50,626 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 3. pre_attn_norm的权重shape: torch.Size([256])
+2026-01-18 22:43:50,627 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 4. attention的权重shape: 多头注意力模块，包含多个子权重
+2026-01-18 22:43:50,627 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.out_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,627 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_a.weight shape: torch.Size([64, 256])
+2026-01-18 22:43:50,627 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_b.weight shape: torch.Size([384, 32])
+2026-01-18 22:43:50,627 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.q_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 5. moe.router.router.weight的权重shape: torch.Size([8, 256])
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w1.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w2.weight的权重shape: torch.Size([256, 1024])
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 7. moe.experts[0].mlp.w3.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 使用 RMSNorm 作为归一化层
+2026-01-18 22:43:50,668 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 3. pre_attn_norm的权重shape: torch.Size([256])
+2026-01-18 22:43:50,669 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 4. attention的权重shape: 多头注意力模块，包含多个子权重
+2026-01-18 22:43:50,669 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.out_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,669 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_a.weight shape: torch.Size([64, 256])
+2026-01-18 22:43:50,669 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_b.weight shape: torch.Size([384, 32])
+2026-01-18 22:43:50,669 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.q_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 5. moe.router.router.weight的权重shape: torch.Size([8, 256])
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w1.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w2.weight的权重shape: torch.Size([256, 1024])
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 7. moe.experts[0].mlp.w3.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 使用 RMSNorm 作为归一化层
+2026-01-18 22:43:50,711 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 3. pre_attn_norm的权重shape: torch.Size([256])
+2026-01-18 22:43:50,712 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 4. attention的权重shape: 多头注意力模块，包含多个子权重
+2026-01-18 22:43:50,712 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.out_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,712 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_a.weight shape: torch.Size([64, 256])
+2026-01-18 22:43:50,712 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.kv_proj_b.weight shape: torch.Size([384, 32])
+2026-01-18 22:43:50,712 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO -    - attention.q_proj.weight shape: torch.Size([256, 256])
+2026-01-18 22:43:50,753 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 5. moe.router.router.weight的权重shape: torch.Size([8, 256])
+2026-01-18 22:43:50,753 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w1.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,753 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 6. moe.experts[0].mlp.w2.weight的权重shape: torch.Size([256, 1024])
+2026-01-18 22:43:50,753 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 7. moe.experts[0].mlp.w3.weight的权重shape: torch.Size([1024, 256])
+2026-01-18 22:43:50,753 - /Users/bytedance/AI/SpaceExploreAI/model/transformer.py - INFO - 8. head的权重shape: torch.Size([1, 256])

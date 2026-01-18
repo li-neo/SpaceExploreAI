@@ -1,0 +1,365 @@
+2026-01-18 22:30:58,383 - __main__ - INFO - 开始处理指定的 3 只股票
+2026-01-18 22:30:58,383 - __main__ - INFO - 处理参数: 序列长度=60, 预测周期=1, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:30:58,383 - __main__ - INFO - 开始处理 AAPL 的数据
+2026-01-18 22:30:58,383 - __main__ - ERROR - 处理 AAPL 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/AAPL'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/AAPL'
+2026-01-18 22:30:58,384 - __main__ - INFO - 开始处理 MSFT 的数据
+2026-01-18 22:30:58,384 - __main__ - ERROR - 处理 MSFT 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/MSFT'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/MSFT'
+2026-01-18 22:30:58,384 - __main__ - INFO - 开始处理 GOOGL 的数据
+2026-01-18 22:30:58,384 - __main__ - ERROR - 处理 GOOGL 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/GOOGL'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/GOOGL'
+2026-01-18 22:30:58,385 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:30:58,385 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:32:27,927 - __main__ - INFO - 开始处理指定的 3 只股票
+2026-01-18 22:32:27,928 - __main__ - INFO - 处理参数: 序列长度=60, 预测周期=1, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:32:27,928 - __main__ - INFO - 开始处理 AAPL 的数据
+2026-01-18 22:32:27,937 - __main__ - ERROR - 处理 AAPL 时出错: 'volume'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'volume'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 331, in process_specific_stocks
+    processed_df = processor.add_features(clean_df, feature_groups)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 221, in add_features
+    result_df = self._add_volume_features(result_df)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 289, in _add_volume_features
+    result_df['volume_change_rate'] = result_df['volume'].pct_change()
+                                      ~~~~~~~~~^^^^^^^^^^
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/frame.py", line 4113, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'volume'
+2026-01-18 22:32:27,987 - __main__ - INFO - 开始处理 MSFT 的数据
+2026-01-18 22:32:27,992 - __main__ - ERROR - 处理 MSFT 时出错: 'volume'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'volume'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 331, in process_specific_stocks
+    processed_df = processor.add_features(clean_df, feature_groups)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 221, in add_features
+    result_df = self._add_volume_features(result_df)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 289, in _add_volume_features
+    result_df['volume_change_rate'] = result_df['volume'].pct_change()
+                                      ~~~~~~~~~^^^^^^^^^^
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/frame.py", line 4113, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'volume'
+2026-01-18 22:32:27,993 - __main__ - INFO - 开始处理 GOOGL 的数据
+2026-01-18 22:32:27,999 - __main__ - ERROR - 处理 GOOGL 时出错: 'volume'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'volume'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 331, in process_specific_stocks
+    processed_df = processor.add_features(clean_df, feature_groups)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 221, in add_features
+    result_df = self._add_volume_features(result_df)
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/data_processor.py", line 289, in _add_volume_features
+    result_df['volume_change_rate'] = result_df['volume'].pct_change()
+                                      ~~~~~~~~~^^^^^^^^^^
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/frame.py", line 4113, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "/Users/bytedance/AI/SpaceExploreAI/.venv/lib/python3.13/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'volume'
+2026-01-18 22:32:28,000 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:32:28,000 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:38:58,884 - __main__ - INFO - 开始处理指定的 8 只股票
+2026-01-18 22:38:58,884 - __main__ - INFO - 处理参数: 序列长度=32, 预测周期=2, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:38:58,885 - __main__ - INFO - 开始处理 BILI 的数据
+2026-01-18 22:38:58,885 - __main__ - ERROR - 处理 BILI 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/BILI'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/BILI'
+2026-01-18 22:38:58,885 - __main__ - INFO - 开始处理 PDD 的数据
+2026-01-18 22:38:58,885 - __main__ - ERROR - 处理 PDD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/PDD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/PDD'
+2026-01-18 22:38:58,885 - __main__ - INFO - 开始处理 BABA 的数据
+2026-01-18 22:38:58,885 - __main__ - ERROR - 处理 BABA 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/BABA'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/BABA'
+2026-01-18 22:38:58,885 - __main__ - INFO - 开始处理 AMD 的数据
+2026-01-18 22:38:58,885 - __main__ - ERROR - 处理 AMD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/AMD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/AMD'
+2026-01-18 22:38:58,885 - __main__ - INFO - 开始处理 ASML 的数据
+2026-01-18 22:38:58,885 - __main__ - ERROR - 处理 ASML 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/ASML'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/ASML'
+2026-01-18 22:38:58,886 - __main__ - INFO - 开始处理 TSM 的数据
+2026-01-18 22:38:58,886 - __main__ - ERROR - 处理 TSM 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/TSM'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/TSM'
+2026-01-18 22:38:58,886 - __main__ - INFO - 开始处理 KO 的数据
+2026-01-18 22:38:58,886 - __main__ - ERROR - 处理 KO 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/KO'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/KO'
+2026-01-18 22:38:58,886 - __main__ - INFO - 开始处理 F 的数据
+2026-01-18 22:38:58,886 - __main__ - ERROR - 处理 F 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/F'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 297, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/price_history/F'
+2026-01-18 22:38:58,886 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:38:58,886 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:39:28,013 - __main__ - INFO - 开始处理指定的 8 只股票
+2026-01-18 22:39:28,013 - __main__ - INFO - 处理参数: 序列长度=32, 预测周期=2, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:39:28,013 - __main__ - INFO - 开始处理 BILI 的数据
+2026-01-18 22:39:28,013 - __main__ - ERROR - 处理 BILI 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 PDD 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 PDD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 BABA 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 BABA 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 AMD 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 AMD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 ASML 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 ASML 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 TSM 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 TSM 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 KO 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 KO 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+2026-01-18 22:39:28,014 - __main__ - INFO - 开始处理 F 的数据
+2026-01-18 22:39:28,014 - __main__ - ERROR - 处理 F 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+2026-01-18 22:39:28,015 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:39:28,015 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:39:48,980 - __main__ - INFO - 开始处理指定的 8 只股票
+2026-01-18 22:39:48,980 - __main__ - INFO - 处理参数: 序列长度=32, 预测周期=2, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:39:48,980 - __main__ - INFO - 开始处理 BILI 的数据
+2026-01-18 22:39:48,980 - __main__ - ERROR - 处理 BILI 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+2026-01-18 22:39:48,980 - __main__ - INFO - 开始处理 PDD 的数据
+2026-01-18 22:39:48,980 - __main__ - ERROR - 处理 PDD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 BABA 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 BABA 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 AMD 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 AMD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 ASML 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 ASML 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 TSM 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 TSM 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 KO 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 KO 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+2026-01-18 22:39:48,981 - __main__ - INFO - 开始处理 F 的数据
+2026-01-18 22:39:48,981 - __main__ - ERROR - 处理 F 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+2026-01-18 22:39:48,981 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:39:48,982 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:40:33,282 - __main__ - INFO - 开始处理指定的 8 只股票
+2026-01-18 22:40:33,283 - __main__ - INFO - 处理参数: 序列长度=32, 预测周期=2, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:40:33,283 - __main__ - INFO - 开始处理 BILI 的数据
+2026-01-18 22:40:33,283 - __main__ - ERROR - 处理 BILI 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BILI'
+2026-01-18 22:40:33,283 - __main__ - INFO - 开始处理 PDD 的数据
+2026-01-18 22:40:33,283 - __main__ - ERROR - 处理 PDD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/PDD'
+2026-01-18 22:40:33,283 - __main__ - INFO - 开始处理 BABA 的数据
+2026-01-18 22:40:33,283 - __main__ - ERROR - 处理 BABA 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/BABA'
+2026-01-18 22:40:33,283 - __main__ - INFO - 开始处理 AMD 的数据
+2026-01-18 22:40:33,283 - __main__ - ERROR - 处理 AMD 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AMD'
+2026-01-18 22:40:33,283 - __main__ - INFO - 开始处理 ASML 的数据
+2026-01-18 22:40:33,284 - __main__ - ERROR - 处理 ASML 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/ASML'
+2026-01-18 22:40:33,284 - __main__ - INFO - 开始处理 TSM 的数据
+2026-01-18 22:40:33,284 - __main__ - ERROR - 处理 TSM 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/TSM'
+2026-01-18 22:40:33,284 - __main__ - INFO - 开始处理 KO 的数据
+2026-01-18 22:40:33,284 - __main__ - ERROR - 处理 KO 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/KO'
+2026-01-18 22:40:33,284 - __main__ - INFO - 开始处理 F 的数据
+2026-01-18 22:40:33,284 - __main__ - ERROR - 处理 F 时出错: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+Traceback (most recent call last):
+  File "/Users/bytedance/AI/SpaceExploreAI/data/finance/process_downloaded_data.py", line 307, in process_specific_stocks
+    csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
+                            ~~~~~~~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/F'
+2026-01-18 22:40:33,284 - __main__ - INFO - 所有股票处理完成，成功处理 0 个股票
+2026-01-18 22:40:33,284 - __main__ - INFO - 成功处理的股票: 0
+2026-01-18 22:42:01,795 - __main__ - INFO - 开始处理所有下载的股票
+2026-01-18 22:42:01,795 - __main__ - INFO - 处理参数: 序列长度=32, 预测周期=2, 特征组=['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:42:01,796 - __main__ - INFO - 找到 3 个股票目录
+2026-01-18 22:42:01,821 - __main__ - INFO - 开始处理 AAPL 的数据
+2026-01-18 22:42:01,863 - __main__ - INFO - AAPL processed_df维度信息: (3989, 67)
+2026-01-18 22:42:03,736 - __main__ - INFO - AAPL 处理完成，sequences维度信息: (3199, 32, 64), (3199,)
+2026-01-18 22:42:03,736 - __main__ - INFO - 开始处理 GOOGL 的数据
+2026-01-18 22:42:03,756 - __main__ - INFO - GOOGL processed_df维度信息: (3989, 67)
+2026-01-18 22:42:05,655 - __main__ - INFO - GOOGL 处理完成，sequences维度信息: (3199, 32, 64), (3199,)
+2026-01-18 22:42:05,655 - __main__ - INFO - 开始处理 MSFT 的数据
+2026-01-18 22:42:05,676 - __main__ - INFO - MSFT processed_df维度信息: (3989, 67)
+2026-01-18 22:42:07,573 - __main__ - INFO - MSFT 处理完成，sequences维度信息: (3199, 32, 64), (3199,)
+2026-01-18 22:42:07,574 - __main__ - INFO - 所有股票处理完成，成功处理 3 个股票
+2026-01-18 22:42:07,574 - __main__ - INFO - 成功处理的股票: 3
+2026-01-18 22:42:07,574 - __main__ - INFO - 股票列表: ['AAPL', 'GOOGL', 'MSFT']

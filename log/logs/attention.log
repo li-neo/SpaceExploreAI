@@ -1,0 +1,4 @@
+2026-01-18 22:43:50,582 - model.attention - INFO - Q投影层全尺寸形状self.q_proj.weight.shape: torch.Size([256, 256])
+2026-01-18 22:43:50,626 - model.attention - INFO - Q投影层全尺寸形状self.q_proj.weight.shape: torch.Size([256, 256])
+2026-01-18 22:43:50,668 - model.attention - INFO - Q投影层全尺寸形状self.q_proj.weight.shape: torch.Size([256, 256])
+2026-01-18 22:43:50,711 - model.attention - INFO - Q投影层全尺寸形状self.q_proj.weight.shape: torch.Size([256, 256])

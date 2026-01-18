@@ -9,11 +9,12 @@ from typing import List, Optional
 # 设置日志
 logger = get_logger(__name__, log_file="process_downloaded_data.log")
 
-# 获取当前文件所在目录的绝对路径
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 获取项目根目录的绝对路径（假设此文件在 data/finance/ 目录下）
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # 设置默认的原始数据和处理后数据的目录
-DEFAULT_RAW_DIR = os.path.join(CURRENT_DIR, "raw", "price_history")
-DEFAULT_PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
+DEFAULT_RAW_DIR = os.path.join(PROJECT_ROOT, "data", "raw", "price_history")
+DEFAULT_PROCESSED_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
 
 os.makedirs(DEFAULT_PROCESSED_DIR, exist_ok=True)
 
@@ -44,7 +45,7 @@ class DataArgs:
     # 数据源配置
     source: str = "yahoo"
 
-    tickers: Optional[List[str]] = ['BILI', 'PDD', 'BABA', 'AMD', 'ASML', 'TSM', 'KO', 'F']
+    tickers: Optional[List[str]] = None
     
 
 def process_all_downloaded_stocks(
@@ -108,7 +109,12 @@ def process_all_downloaded_stocks(
         
         try:
             # 查找该股票的所有CSV文件
-            ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
+            # 如果raw_data_dir已经包含了price_history，就不需要再加了
+            if "price_history" in raw_data_dir:
+                ticker_dir = os.path.join(raw_data_dir, ticker)
+            else:
+                ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
+                
             csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
             
             if not csv_files:
@@ -292,7 +298,12 @@ def process_specific_stocks(
         
         try:
             # 查找该股票的所有CSV文件
-            ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
+            # 如果raw_data_dir已经包含了price_history，就不需要再加了
+            if "price_history" in raw_data_dir:
+                ticker_dir = os.path.join(raw_data_dir, ticker)
+            else:
+                ticker_dir = os.path.join(raw_data_dir, "price_history", ticker)
+                
             csv_files = [f for f in os.listdir(ticker_dir) if f.endswith('.csv')]
             
             if not csv_files:

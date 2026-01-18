@@ -115,10 +115,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="下载股票历史价格数据")
     stock = "BILI,PDD,BABA,AMD,ASML,TSM,KO,F"
     
+    # 获取项目根目录
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    default_output_dir = os.path.join(project_root, "data", "raw")
+
     parser.add_argument("--tickers", type=str, default=stock, help="股票代码，多个用逗号分隔")
     parser.add_argument("--start_date", type=str, default="2010-03-11", help="开始日期，格式为'YYYY-MM-DD'")
     parser.add_argument("--end_date", type=str, default=datetime.now().strftime("%Y-%m-%d"), help="结束日期，格式为'YYYY-MM-DD'")
-    parser.add_argument("--output_dir", type=str, default="../data/raw", help="输出目录")
+    parser.add_argument("--output_dir", type=str, default=default_output_dir, help="输出目录")
     parser.add_argument("--source", type=str, default="yahoo", help="数据源，如'yahoo'或'alphavantage'")
     parser.add_argument("--interval", type=str, default="1d", help="数据间隔，如'1m'或'1d'")
     args = parser.parse_args()

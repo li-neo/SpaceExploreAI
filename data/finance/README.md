@@ -1,149 +1,110 @@
-# 数据目录结构说明
+# 金融数据处理模块
+
+本模块负责股票数据的获取、处理和特征工程，为模型训练提供高质量的数据支持。
+
+## 功能概述
+
+1. **数据获取** (`download_data.py`)：
+   - 从 Yahoo Finance 等数据源下载股票历史价格数据
+   - 支持多只股票批量下载
+   - 自动处理无效数据行
+
+2. **数据处理** (`process_downloaded_data.py`)：
+   - 加载原始 CSV 数据
+   - 计算技术指标（SMA, RSI, MACD 等）
+   - 生成时间序列特征
+   - 数据标准化（RobustScaler, MinMaxScaler 等）
+   - 划分训练集、验证集和测试集
+   - 生成模型所需的序列数据（Sequence Data）
+
+## 快速开始
+
+### 1. 下载数据
+
+使用 `download_data.py` 下载股票数据。
+
+```bash
+# 确保在项目根目录下，并设置PYTHONPATH
+export PYTHONPATH=$PYTHONPATH:.
+
+# 下载默认股票数据 (BILI,PDD,BABA,AMD,ASML,TSM,KO,F)
+python data/finance/download_data.py
+
+# 下载指定股票数据
+python data/finance/download_data.py --tickers AAPL,MSFT,GOOGL --start_date 2015-01-01
+
+# 查看帮助
+python data/finance/download_data.py --help
+```
+
+**参数说明：**
+- `--tickers`: 股票代码，多个用逗号分隔 (默认: BILI,PDD,BABA,AMD,ASML,TSM,KO,F)
+- `--start_date`: 开始日期 (默认: 2010-03-11)
+- `--end_date`: 结束日期 (默认: 当前日期)
+- `--output_dir`: 输出目录 (默认: ../data/raw)
+- `--source`: 数据源 (默认: yahoo)
+- `--interval`: 数据间隔 (默认: 1d)
+
+### 2. 处理数据
+
+使用 `process_downloaded_data.py` 清洗和处理数据，生成用于训练的 `.npz` 文件。
+
+```bash
+# 确保在项目根目录下，并设置PYTHONPATH
+export PYTHONPATH=$PYTHONPATH:.
+
+# 处理所有已下载的股票数据
+python data/finance/process_downloaded_data.py
+
+# 处理指定股票数据，并设置序列长度和批次大小
+python data/finance/process_downloaded_data.py --tickers AAPL,MSFT --seq_length 60 --batch_size 64
+
+# 查看帮助
+python data/finance/process_downloaded_data.py --help
+```
+
+**参数说明：**
+- `--raw_dir`: 原始数据目录
+- `--processed_dir`: 处理后数据目录
+- `--tickers`: 指定要处理的股票代码，逗号分隔 (如果不指定，则处理所有下载的股票)
+- `--test_size`: 测试集比例 (默认: 0.1)
+- `--val_size`: 验证集比例 (默认: 0.1)
+- `--seq_length`: 序列长度 (默认: 60)
+- `--pred_horizon`: 预测周期 (默认: 1)
+- `--batch_size`: 批处理大小 (默认: 64)
+- `--scaler`: 数据标准化方式 (默认: robust)
+
+## 数据目录结构
 
 ```
 data/
-├── raw/                      # 原始数据目录
-│   ├── price_history/       # 股票价格历史数据
-│   │   ├── AAPL/           # 按股票代码分类的目录
-│   │   │   ├── daily.csv   # 日线数据
-│   │   │   └── minute.csv  # 分钟线数据
+├── raw/                      # 原始数据目录 (由 download_data.py 生成)
+│   ├── price_history/       
+│   │   ├── AAPL/           
+│   │   │   └── AAPL_yahoo_20231027.csv
 │   │   └── ...
-│   ├── fundamental/        # 基本面数据
-│   │   ├── financial/      # 财务数据
-│   │   └── company_info/   # 公司信息
-│   └── market_data/        # 市场数据
-│       ├── indices/        # 指数数据
-│       └── sectors/        # 行业数据
 │
-├── processed/              # 处理后的数据目录
-│   ├── features/          # 特征数据
-│   │   ├── technical/     # 技术指标
-│   │   ├── fundamental/   # 基本面特征
-│   │   └── market/        # 市场特征
-│   ├── sequences/         # 序列数据
-│   │   ├── train/        # 训练集序列
-│   │   ├── val/          # 验证集序列
-│   │   └── test/         # 测试集序列
-│   └── scalers/          # 数据缩放器
-│
-├── models/                # 模型相关数据
-│   ├── checkpoints/      # 模型检查点
-│   ├── predictions/      # 模型预测结果
-│   └── evaluation/       # 模型评估结果
-│
-└── config/               # 配置文件目录
-    ├── data_config.yaml  # 数据处理配置
-    └── model_config.yaml # 模型配置
+├── processed/                # 处理后的数据目录 (由 process_downloaded_data.py 生成)
+│   ├── train/               # 训练集序列数据 (*_train_sequences.npz)
+│   ├── val/                 # 验证集序列数据 (*_val_sequences.npz)
+│   ├── test/                # 测试集序列数据 (*_test_sequences.npz)
+│   └── scalers/             # 数据缩放器 (*_scaler.pkl)
 ```
 
-## 目录说明
+## 技术指标说明
 
-### raw/ - 原始数据目录
-- `price_history/`: 存储从数据源下载的原始股票价格数据
-  - 按股票代码分类存储
-  - 包含日线、分钟线等不同时间粒度的数据
-- `fundamental/`: 存储基本面数据
-  - 包含财务报表、公司信息等
-- `market_data/`: 存储市场整体数据
-  - 包含指数、行业数据等
+数据处理过程中会自动计算以下技术指标：
+- **Trend**: SMA, EMA, MACD
+- **Momentum**: RSI
+- **Volatility**: BB (Bollinger Bands), ATR
+- **Volume**: OBV
 
-### processed/ - 处理后的数据目录
-- `features/`: 存储处理后的特征数据
-  - 技术指标：如MA、RSI、MACD等
-  - 基本面特征：如财务比率、估值指标等
-  - 市场特征：如市场情绪、行业景气度等
-- `sequences/`: 存储用于模型训练的序列数据
-  - 按训练集、验证集、测试集分类
-  - 包含特征序列和目标变量
-- `scalers/`: 存储数据标准化/归一化的缩放器
-  - 用于保持训练集和测试集的一致性
+## 常见问题
 
-### models/ - 模型相关数据目录
-- `checkpoints/`: 存储模型训练过程中的检查点
-- `predictions/`: 存储模型的预测结果
-- `evaluation/`: 存储模型评估指标和结果
+1. **ModuleNotFoundError**: 
+   - 请确保在运行脚本前设置了 `PYTHONPATH`，例如：`export PYTHONPATH=$PYTHONPATH:.`
 
-### config/ - 配置文件目录
-- `data_config.yaml`: 数据处理相关的配置参数
-- `model_config.yaml`: 模型训练相关的配置参数
-
-## 使用说明
-
-1. 数据获取：
-   - 使用 `download_data.py` 从数据源下载原始数据
-   - 数据将保存在 `raw/` 目录下
-
-2. 数据处理：
-   - 使用 `process_downloaded_data.py` 处理原始数据
-   - 处理后的数据将保存在 `processed/` 目录下
-
-3. 模型训练：
-   - 使用 `train_model.py` 训练模型
-   - 模型检查点将保存在 `models/checkpoints/` 目录下
-
-4. 预测和评估：
-   - 使用 `predict.py` 进行预测
-   - 预测结果将保存在 `models/predictions/` 目录下
-   - 评估结果将保存在 `models/evaluation/` 目录下
-
-## 数据缩放（标准化/归一化）
-
-### 一、数据缩放的核心作用
-1. **消除量纲差异**：股票特征如价格、成交量、换手率等量级差异大，缩放可避免模型被高量纲特征主导。
-2. **加速模型收敛**：梯度下降类算法（如神经网络、SVM）在缩放后的数据上更易找到最优解，减少训练时间。
-3. **提升模型鲁棒性**：缓解异常值（如极端涨跌幅）对模型的影响，增强泛化能力。
-
----
-
-### 二、适用于股票K线数据的缩放方法
-#### 1. **标准化（StandardScaler）**
-   - **原理**：将数据调整为均值为0、标准差为1的分布，公式：\( X_{\text{std}} = \frac{X - \mu}{\sigma} \)。
-   - **适用场景**：  
-     - 价格序列（如收盘价、开盘价）的长期趋势分析；  
-     - 数据分布接近正态（如对数收益率）。
-   - **优点**：保留价格波动的相对幅度信息。  
-   - **注意**：对异常值敏感，需结合异常检测或截尾处理。
-
-#### 2. **归一化（MinMaxScaler）**
-   - **原理**：线性映射到固定范围（如[0,1]），公式：\( X_{\text{norm}} = \frac{X - X_{\min}}{X_{\max} - X_{\min}} \)。
-   - **适用场景**：  
-     - 短期价格波动（如分钟级K线）的细节捕捉；  
-     - 需要固定输入范围的模型（如LSTM、CNN）。
-   - **优点**：直观反映价格在周期内的相对位置。  
-   - **注意**：若存在极端值（如"天地板"行情），可能压缩正常数据范围。
-
-#### 3. **鲁棒缩放（RobustScaler）**
-   - **原理**：基于中位数和四分位距（IQR）缩放，公式：\( X_{\text{robust}} = \frac{X - \text{Median}}{\text{IQR}} \)。
-   - **适用场景**：  
-     - 高频交易数据中的异常值（如闪崩、暴涨）；  
-     - 非对称分布的特征（如成交量突增）。
-   - **优点**：对异常值不敏感，适合股票市场的非平稳性。
-
-#### 4. **滑动窗口缩放**
-   - **原理**：在时间序列上按窗口局部缩放（如滚动均值标准化），避免未来信息泄露。
-   - **适用场景**：  
-     - 在线学习或实时预测模型；  
-     - 长周期数据中的局部模式识别（如趋势反转）。
-   - **优点**：贴合时间序列的时序依赖性。
-
----
-
-### 三、实践建议与注意事项
-1. **特征选择与工程**：  
-   - 优先缩放数值型特征（如价格、成交量、技术指标），分类特征（如行业、板块）无需缩放。  
-   - 对收益率（如 \( r_t = \frac{P_t - P_{t-1}}{P_{t-1}} \)）通常无需额外缩放，因其已标准化。
-
-2. **数据泄漏防范**：  
-   - 缩放应在训练集上计算参数（如均值、标准差），再应用于测试集，避免引入未来信息。
-
-3. **模型适配性**：  
-   - 树模型（如随机森林、XGBoost）对尺度不敏感，可跳过缩放；  
-   - 神经网络、SVM、KNN等模型需强制缩放。
-
-4. **特殊处理案例**：  
-   - **图像化K线输入**：若将K线图转为图像训练CNN，需进行像素归一化（如缩放到[0,255]或[0,1]）。  
-   - **多周期数据融合**：不同时间粒度（如日线、周线）的数据需分别缩放后再拼接。
-
-
-### 总结
-股票K线数据的缩放需根据**模型类型**、**数据分布**和**应用场景**灵活选择。若数据含大量异常值，优先使用RobustScaler；若需保留价格相对位置信息，可选择MinMaxScaler；标准化（StandardScaler）则适用于大多数通用场景。同时，需严格防范数据泄漏，确保时序数据的独立性处理。
+2. **下载失败**:
+   - 检查网络连接
+   - 确认股票代码是否正确
+   - 尝试更新 `yfinance` 库: `pip install --upgrade yfinance`

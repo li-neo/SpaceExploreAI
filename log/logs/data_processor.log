@@ -1,0 +1,186 @@
+2026-01-18 22:32:27,933 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:32:27,937 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:32:27,937 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:32:27,937 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:32:27,937 - data.finance.data_processor - ERROR - 价格列 close 不存在于数据框中，无法计算收益率特征
+2026-01-18 22:32:27,937 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:32:27,937 - data.finance.data_processor - ERROR - 未能创建任何未来收益率列！
+2026-01-18 22:32:27,937 - data.finance.data_processor - WARNING - 缺少计算波动性特征所需的列: ['high', 'low', 'close', 'open', 'volume']
+2026-01-18 22:32:27,937 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:32:27,990 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:32:27,992 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:32:27,992 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:32:27,992 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:32:27,992 - data.finance.data_processor - ERROR - 价格列 close 不存在于数据框中，无法计算收益率特征
+2026-01-18 22:32:27,992 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:32:27,992 - data.finance.data_processor - ERROR - 未能创建任何未来收益率列！
+2026-01-18 22:32:27,992 - data.finance.data_processor - WARNING - 缺少计算波动性特征所需的列: ['high', 'low', 'close', 'open', 'volume']
+2026-01-18 22:32:27,992 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:32:27,997 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:32:27,998 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:32:27,999 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:32:27,999 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:32:27,999 - data.finance.data_processor - ERROR - 价格列 close 不存在于数据框中，无法计算收益率特征
+2026-01-18 22:32:27,999 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:32:27,999 - data.finance.data_processor - ERROR - 未能创建任何未来收益率列！
+2026-01-18 22:32:27,999 - data.finance.data_processor - WARNING - 缺少计算波动性特征所需的列: ['high', 'low', 'close', 'open', 'volume']
+2026-01-18 22:32:27,999 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:42:01,830 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:42:01,841 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:42:01,841 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:42:01,845 - data.finance.data_processor - INFO - 已添加时间特征
+2026-01-18 22:42:01,848 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:42:01,849 - data.finance.data_processor - INFO - 创建了 future_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:01,849 - data.finance.data_processor - INFO - 创建了 future_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:01,849 - data.finance.data_processor - INFO - 创建了 future_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:01,849 - data.finance.data_processor - INFO - 创建了 future_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 创建了 past_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 创建了 past_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 创建了 past_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 创建了 past_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:42:01,850 - data.finance.data_processor - INFO - 创建的未来收益率列: ['future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d']
+2026-01-18 22:42:01,851 - data.finance.data_processor - INFO - 添加了当日波动范围特征: daily_range
+2026-01-18 22:42:01,851 - data.finance.data_processor - INFO - 添加了当日波动绝对值特征: daily_range_abs
+2026-01-18 22:42:01,851 - data.finance.data_processor - INFO - 添加了开盘跳空特征: gap
+2026-01-18 22:42:01,852 - data.finance.data_processor - INFO - 添加了收盘与开盘差距特征: close_to_open
+2026-01-18 22:42:01,852 - data.finance.data_processor - INFO - 添加了收盘与最高价差距特征: close_to_high
+2026-01-18 22:42:01,852 - data.finance.data_processor - INFO - 添加了收盘与最低价差距特征: close_to_low
+2026-01-18 22:42:01,854 - data.finance.data_processor - INFO - 添加了5日波动率特征: volatility_5d
+2026-01-18 22:42:01,854 - data.finance.data_processor - INFO - 添加了10日波动率特征: volatility_10d
+2026-01-18 22:42:01,855 - data.finance.data_processor - INFO - 添加了21日波动率特征: volatility_21d
+2026-01-18 22:42:01,856 - data.finance.data_processor - INFO - 添加了5日平均真实范围特征: atr_5d
+2026-01-18 22:42:01,856 - data.finance.data_processor - INFO - 添加了10日平均真实范围特征: atr_10d
+2026-01-18 22:42:01,856 - data.finance.data_processor - INFO - 添加了21日平均真实范围特征: atr_21d
+2026-01-18 22:42:01,857 - data.finance.data_processor - INFO - 添加了5日价格动量特征: momentum_5d
+2026-01-18 22:42:01,858 - data.finance.data_processor - INFO - 添加了10日价格动量特征: momentum_10d
+2026-01-18 22:42:01,858 - data.finance.data_processor - INFO - 添加了21日价格动量特征: momentum_21d
+2026-01-18 22:42:01,858 - data.finance.data_processor - INFO - 添加了5日成交量变化率特征: volume_change_5d
+2026-01-18 22:42:01,858 - data.finance.data_processor - INFO - 添加了10日成交量变化率特征: volume_change_10d
+2026-01-18 22:42:01,859 - data.finance.data_processor - INFO - 添加了21日成交量变化率特征: volume_change_21d
+2026-01-18 22:42:01,859 - data.finance.data_processor - INFO - 添加了收盘价与5日均线差距特征: close_to_ma_5d
+2026-01-18 22:42:01,860 - data.finance.data_processor - INFO - 添加了收盘价与10日均线差距特征: close_to_ma_10d
+2026-01-18 22:42:01,861 - data.finance.data_processor - INFO - 添加了收盘价与21日均线差距特征: close_to_ma_21d
+2026-01-18 22:42:01,861 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:42:01,863 - data.finance.data_processor - INFO - 已添加成交量特征
+2026-01-18 22:42:01,863 - data.finance.data_processor - INFO - 最终数据形状: (3989, 67), 列数: 67
+2026-01-18 22:42:01,863 - data.finance.data_processor - INFO - 特征列名: ['date', 'close', 'high', 'low', 'open', 'volume', 'ticker', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:01,866 - data.finance.data_processor - INFO - 数据集分割: 训练集 3231 行, 验证集 359 行, 测试集 399 行
+2026-01-18 22:42:01,866 - data.finance.data_processor - INFO - 正在缩放特征...
+2026-01-18 22:42:01,891 - data.finance.data_processor - INFO - 正在创建序列数据集，序列长度：32，目标列：future_return_2d
+2026-01-18 22:42:01,891 - data.finance.data_processor - INFO - train 集中 future_return_2d 列: 非空值数量=3231, 总行数=3231, 非空比例=100.00%
+2026-01-18 22:42:01,891 - data.finance.data_processor - INFO - val 集中 future_return_2d 列: 非空值数量=359, 总行数=359, 非空比例=100.00%
+2026-01-18 22:42:01,891 - data.finance.data_processor - INFO - test 集中 future_return_2d 列: 非空值数量=399, 总行数=399, 非空比例=100.00%
+2026-01-18 22:42:01,892 - data.finance.data_processor - INFO - 自动选择了 64 个特征列: ['close', 'high', 'low', 'open', 'volume', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:03,176 - data.finance.data_processor - INFO - train 集创建了 3199 个序列，目标值数量: 3199
+2026-01-18 22:42:03,305 - data.finance.data_processor - INFO - val 集创建了 327 个序列，目标值数量: 327
+2026-01-18 22:42:03,441 - data.finance.data_processor - INFO - test 集创建了 367 个序列，目标值数量: 367
+2026-01-18 22:42:03,724 - data.finance.data_processor - INFO - 已保存处理后的数据到对应目录
+2026-01-18 22:42:03,725 - data.finance.data_processor - INFO - 已保存缩放器到 /Users/bytedance/AI/SpaceExploreAI/data/processed/scalers
+2026-01-18 22:42:03,740 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:42:03,742 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:42:03,742 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:42:03,745 - data.finance.data_processor - INFO - 已添加时间特征
+2026-01-18 22:42:03,747 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:42:03,747 - data.finance.data_processor - INFO - 创建了 future_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:03,747 - data.finance.data_processor - INFO - 创建了 future_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:03,748 - data.finance.data_processor - INFO - 创建了 future_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:03,748 - data.finance.data_processor - INFO - 创建了 future_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:03,748 - data.finance.data_processor - INFO - 创建了 past_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:03,748 - data.finance.data_processor - INFO - 创建了 past_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:03,748 - data.finance.data_processor - INFO - 创建了 past_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 创建了 past_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 创建的未来收益率列: ['future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d']
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 添加了当日波动范围特征: daily_range
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 添加了当日波动绝对值特征: daily_range_abs
+2026-01-18 22:42:03,749 - data.finance.data_processor - INFO - 添加了开盘跳空特征: gap
+2026-01-18 22:42:03,750 - data.finance.data_processor - INFO - 添加了收盘与开盘差距特征: close_to_open
+2026-01-18 22:42:03,750 - data.finance.data_processor - INFO - 添加了收盘与最高价差距特征: close_to_high
+2026-01-18 22:42:03,750 - data.finance.data_processor - INFO - 添加了收盘与最低价差距特征: close_to_low
+2026-01-18 22:42:03,750 - data.finance.data_processor - INFO - 添加了5日波动率特征: volatility_5d
+2026-01-18 22:42:03,751 - data.finance.data_processor - INFO - 添加了10日波动率特征: volatility_10d
+2026-01-18 22:42:03,751 - data.finance.data_processor - INFO - 添加了21日波动率特征: volatility_21d
+2026-01-18 22:42:03,752 - data.finance.data_processor - INFO - 添加了5日平均真实范围特征: atr_5d
+2026-01-18 22:42:03,752 - data.finance.data_processor - INFO - 添加了10日平均真实范围特征: atr_10d
+2026-01-18 22:42:03,752 - data.finance.data_processor - INFO - 添加了21日平均真实范围特征: atr_21d
+2026-01-18 22:42:03,753 - data.finance.data_processor - INFO - 添加了5日价格动量特征: momentum_5d
+2026-01-18 22:42:03,753 - data.finance.data_processor - INFO - 添加了10日价格动量特征: momentum_10d
+2026-01-18 22:42:03,753 - data.finance.data_processor - INFO - 添加了21日价格动量特征: momentum_21d
+2026-01-18 22:42:03,753 - data.finance.data_processor - INFO - 添加了5日成交量变化率特征: volume_change_5d
+2026-01-18 22:42:03,753 - data.finance.data_processor - INFO - 添加了10日成交量变化率特征: volume_change_10d
+2026-01-18 22:42:03,754 - data.finance.data_processor - INFO - 添加了21日成交量变化率特征: volume_change_21d
+2026-01-18 22:42:03,754 - data.finance.data_processor - INFO - 添加了收盘价与5日均线差距特征: close_to_ma_5d
+2026-01-18 22:42:03,754 - data.finance.data_processor - INFO - 添加了收盘价与10日均线差距特征: close_to_ma_10d
+2026-01-18 22:42:03,755 - data.finance.data_processor - INFO - 添加了收盘价与21日均线差距特征: close_to_ma_21d
+2026-01-18 22:42:03,755 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:42:03,756 - data.finance.data_processor - INFO - 已添加成交量特征
+2026-01-18 22:42:03,756 - data.finance.data_processor - INFO - 最终数据形状: (3989, 67), 列数: 67
+2026-01-18 22:42:03,756 - data.finance.data_processor - INFO - 特征列名: ['date', 'close', 'high', 'low', 'open', 'volume', 'ticker', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:03,758 - data.finance.data_processor - INFO - 数据集分割: 训练集 3231 行, 验证集 359 行, 测试集 399 行
+2026-01-18 22:42:03,758 - data.finance.data_processor - INFO - 正在缩放特征...
+2026-01-18 22:42:03,775 - data.finance.data_processor - INFO - 正在创建序列数据集，序列长度：32，目标列：future_return_2d
+2026-01-18 22:42:03,775 - data.finance.data_processor - INFO - train 集中 future_return_2d 列: 非空值数量=3231, 总行数=3231, 非空比例=100.00%
+2026-01-18 22:42:03,775 - data.finance.data_processor - INFO - val 集中 future_return_2d 列: 非空值数量=359, 总行数=359, 非空比例=100.00%
+2026-01-18 22:42:03,775 - data.finance.data_processor - INFO - test 集中 future_return_2d 列: 非空值数量=399, 总行数=399, 非空比例=100.00%
+2026-01-18 22:42:03,776 - data.finance.data_processor - INFO - 自动选择了 64 个特征列: ['close', 'high', 'low', 'open', 'volume', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:05,046 - data.finance.data_processor - INFO - train 集创建了 3199 个序列，目标值数量: 3199
+2026-01-18 22:42:05,172 - data.finance.data_processor - INFO - val 集创建了 327 个序列，目标值数量: 327
+2026-01-18 22:42:05,365 - data.finance.data_processor - INFO - test 集创建了 367 个序列，目标值数量: 367
+2026-01-18 22:42:05,652 - data.finance.data_processor - INFO - 已保存处理后的数据到对应目录
+2026-01-18 22:42:05,653 - data.finance.data_processor - INFO - 已保存缩放器到 /Users/bytedance/AI/SpaceExploreAI/data/processed/scalers
+2026-01-18 22:42:05,660 - data.finance.data_processor - INFO - 正在清洗股票数据...
+2026-01-18 22:42:05,663 - data.finance.data_processor - INFO - 正在添加特征...
+2026-01-18 22:42:05,663 - data.finance.data_processor - INFO - 要添加的特征组: ['time', 'lag', 'return', 'volatility', 'volume']
+2026-01-18 22:42:05,665 - data.finance.data_processor - INFO - 已添加时间特征
+2026-01-18 22:42:05,667 - data.finance.data_processor - INFO - 已添加滞后特征
+2026-01-18 22:42:05,667 - data.finance.data_processor - INFO - 创建了 future_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:05,667 - data.finance.data_processor - INFO - 创建了 future_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:05,668 - data.finance.data_processor - INFO - 创建了 future_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:05,668 - data.finance.data_processor - INFO - 创建了 future_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:05,668 - data.finance.data_processor - INFO - 创建了 past_return_1d 列: 非空值数量=3988, 总行数=3989, 非空比例=99.97%
+2026-01-18 22:42:05,668 - data.finance.data_processor - INFO - 创建了 past_return_2d 列: 非空值数量=3987, 总行数=3989, 非空比例=99.95%
+2026-01-18 22:42:05,668 - data.finance.data_processor - INFO - 创建了 past_return_5d 列: 非空值数量=3984, 总行数=3989, 非空比例=99.87%
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 创建了 past_return_10d 列: 非空值数量=3979, 总行数=3989, 非空比例=99.75%
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 已添加收益率特征
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 创建的未来收益率列: ['future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d']
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 添加了当日波动范围特征: daily_range
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 添加了当日波动绝对值特征: daily_range_abs
+2026-01-18 22:42:05,669 - data.finance.data_processor - INFO - 添加了开盘跳空特征: gap
+2026-01-18 22:42:05,670 - data.finance.data_processor - INFO - 添加了收盘与开盘差距特征: close_to_open
+2026-01-18 22:42:05,670 - data.finance.data_processor - INFO - 添加了收盘与最高价差距特征: close_to_high
+2026-01-18 22:42:05,670 - data.finance.data_processor - INFO - 添加了收盘与最低价差距特征: close_to_low
+2026-01-18 22:42:05,670 - data.finance.data_processor - INFO - 添加了5日波动率特征: volatility_5d
+2026-01-18 22:42:05,671 - data.finance.data_processor - INFO - 添加了10日波动率特征: volatility_10d
+2026-01-18 22:42:05,671 - data.finance.data_processor - INFO - 添加了21日波动率特征: volatility_21d
+2026-01-18 22:42:05,672 - data.finance.data_processor - INFO - 添加了5日平均真实范围特征: atr_5d
+2026-01-18 22:42:05,672 - data.finance.data_processor - INFO - 添加了10日平均真实范围特征: atr_10d
+2026-01-18 22:42:05,672 - data.finance.data_processor - INFO - 添加了21日平均真实范围特征: atr_21d
+2026-01-18 22:42:05,672 - data.finance.data_processor - INFO - 添加了5日价格动量特征: momentum_5d
+2026-01-18 22:42:05,673 - data.finance.data_processor - INFO - 添加了10日价格动量特征: momentum_10d
+2026-01-18 22:42:05,673 - data.finance.data_processor - INFO - 添加了21日价格动量特征: momentum_21d
+2026-01-18 22:42:05,673 - data.finance.data_processor - INFO - 添加了5日成交量变化率特征: volume_change_5d
+2026-01-18 22:42:05,673 - data.finance.data_processor - INFO - 添加了10日成交量变化率特征: volume_change_10d
+2026-01-18 22:42:05,674 - data.finance.data_processor - INFO - 添加了21日成交量变化率特征: volume_change_21d
+2026-01-18 22:42:05,674 - data.finance.data_processor - INFO - 添加了收盘价与5日均线差距特征: close_to_ma_5d
+2026-01-18 22:42:05,674 - data.finance.data_processor - INFO - 添加了收盘价与10日均线差距特征: close_to_ma_10d
+2026-01-18 22:42:05,675 - data.finance.data_processor - INFO - 添加了收盘价与21日均线差距特征: close_to_ma_21d
+2026-01-18 22:42:05,675 - data.finance.data_processor - INFO - 已添加波动性特征
+2026-01-18 22:42:05,676 - data.finance.data_processor - INFO - 已添加成交量特征
+2026-01-18 22:42:05,676 - data.finance.data_processor - INFO - 最终数据形状: (3989, 67), 列数: 67
+2026-01-18 22:42:05,676 - data.finance.data_processor - INFO - 特征列名: ['date', 'close', 'high', 'low', 'open', 'volume', 'ticker', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_2d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:05,677 - data.finance.data_processor - INFO - 数据集分割: 训练集 3231 行, 验证集 359 行, 测试集 399 行
+2026-01-18 22:42:05,677 - data.finance.data_processor - INFO - 正在缩放特征...
+2026-01-18 22:42:05,694 - data.finance.data_processor - INFO - 正在创建序列数据集，序列长度：32，目标列：future_return_2d
+2026-01-18 22:42:05,695 - data.finance.data_processor - INFO - train 集中 future_return_2d 列: 非空值数量=3231, 总行数=3231, 非空比例=100.00%
+2026-01-18 22:42:05,695 - data.finance.data_processor - INFO - val 集中 future_return_2d 列: 非空值数量=359, 总行数=359, 非空比例=100.00%
+2026-01-18 22:42:05,695 - data.finance.data_processor - INFO - test 集中 future_return_2d 列: 非空值数量=399, 总行数=399, 非空比例=100.00%
+2026-01-18 22:42:05,695 - data.finance.data_processor - INFO - 自动选择了 64 个特征列: ['close', 'high', 'low', 'open', 'volume', 'day_of_week', 'day_of_month', 'week_of_year', 'month', 'quarter', 'year', 'is_month_start', 'is_month_end', 'is_week_start', 'is_week_end', 'close_lag_1', 'close_lag_2', 'close_lag_3', 'close_lag_5', 'close_lag_10', 'high_lag_1', 'high_lag_2', 'high_lag_3', 'high_lag_5', 'high_lag_10', 'low_lag_1', 'low_lag_2', 'low_lag_3', 'low_lag_5', 'low_lag_10', 'volume_lag_1', 'volume_lag_2', 'volume_lag_3', 'volume_lag_5', 'volume_lag_10', 'future_return_1d', 'future_return_5d', 'future_return_10d', 'past_return_1d', 'past_return_2d', 'past_return_5d', 'past_return_10d', 'daily_range', 'daily_range_abs', 'gap', 'close_to_open', 'close_to_high', 'close_to_low', 'volatility_5d', 'volatility_10d', 'volatility_21d', 'atr_5d', 'atr_10d', 'atr_21d', 'momentum_5d', 'momentum_10d', 'momentum_21d', 'volume_change_5d', 'volume_change_10d', 'volume_change_21d', 'close_to_ma_5d', 'close_to_ma_10d', 'close_to_ma_21d', 'volume_change_rate']
+2026-01-18 22:42:06,929 - data.finance.data_processor - INFO - train 集创建了 3199 个序列，目标值数量: 3199
+2026-01-18 22:42:07,116 - data.finance.data_processor - INFO - val 集创建了 327 个序列，目标值数量: 327
+2026-01-18 22:42:07,255 - data.finance.data_processor - INFO - test 集创建了 367 个序列，目标值数量: 367
+2026-01-18 22:42:07,570 - data.finance.data_processor - INFO - 已保存处理后的数据到对应目录
+2026-01-18 22:42:07,570 - data.finance.data_processor - INFO - 已保存缩放器到 /Users/bytedance/AI/SpaceExploreAI/data/processed/scalers
+2026-01-18 22:43:50,465 - data.finance.data_processor - INFO - 已加载AAPL:features,target缩放器
+2026-01-18 22:43:50,517 - data.finance.data_processor - INFO - 已加载MSFT:features,target缩放器
+2026-01-18 22:43:50,561 - data.finance.data_processor - INFO - 已加载GOOGL:features,target缩放器

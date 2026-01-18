@@ -1,0 +1,62 @@
+2026-01-18 22:25:48,250 - __main__ - INFO - 将下载 3 只股票的数据: AAPL,MSFT,GOOGL
+2026-01-18 22:25:48,299 - __main__ - INFO - 从Yahoo Finance下载股票数据: AAPL
+2026-01-18 22:25:52,175 - __main__ - INFO - 成功保存数据到: ../data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:25:52,193 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:25:52,200 - __main__ - INFO - 已修复并重新保存文件: ../data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv
+2026-01-18 22:25:52,200 - __main__ - INFO - 从Yahoo Finance下载股票数据: MSFT
+2026-01-18 22:25:53,313 - __main__ - INFO - 成功保存数据到: ../data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:25:53,331 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:25:53,337 - __main__ - INFO - 已修复并重新保存文件: ../data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv
+2026-01-18 22:25:53,338 - __main__ - INFO - 从Yahoo Finance下载股票数据: GOOGL
+2026-01-18 22:25:54,385 - __main__ - INFO - 成功保存数据到: ../data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:25:54,402 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:25:54,410 - __main__ - INFO - 已修复并重新保存文件: ../data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv
+2026-01-18 22:25:54,410 - __main__ - INFO - 完成下载，成功: 3/3
+2026-01-18 22:29:38,641 - __main__ - INFO - 将下载 3 只股票的数据: AAPL,MSFT,GOOGL
+2026-01-18 22:29:38,668 - __main__ - INFO - 从Yahoo Finance下载股票数据: AAPL
+2026-01-18 22:29:40,492 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:29:40,509 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:29:40,515 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv
+2026-01-18 22:29:40,516 - __main__ - INFO - 从Yahoo Finance下载股票数据: MSFT
+2026-01-18 22:29:41,306 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:29:41,324 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:29:41,332 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv
+2026-01-18 22:29:41,332 - __main__ - INFO - 从Yahoo Finance下载股票数据: GOOGL
+2026-01-18 22:29:42,325 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:29:42,342 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:29:42,349 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv
+2026-01-18 22:29:42,350 - __main__ - INFO - 完成下载，成功: 3/3
+2026-01-18 22:33:10,469 - __main__ - INFO - 将下载 3 只股票的数据: AAPL,MSFT,GOOGL
+2026-01-18 22:33:10,501 - __main__ - INFO - 从Yahoo Finance下载股票数据: AAPL
+2026-01-18 22:33:12,725 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:33:12,742 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:33:12,748 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv
+2026-01-18 22:33:12,749 - __main__ - INFO - 从Yahoo Finance下载股票数据: MSFT
+2026-01-18 22:33:13,803 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:33:13,821 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:33:13,828 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv
+2026-01-18 22:33:13,829 - __main__ - INFO - 从Yahoo Finance下载股票数据: GOOGL
+2026-01-18 22:33:14,655 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:33:14,672 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:33:14,679 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv
+2026-01-18 22:33:14,680 - __main__ - INFO - 完成下载，成功: 3/3
+2026-01-18 22:39:35,536 - __main__ - INFO - 将下载 1 只股票的数据: AAPL
+2026-01-18 22:39:35,576 - __main__ - INFO - 从Yahoo Finance下载股票数据: AAPL
+2026-01-18 22:39:37,943 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:39:37,960 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:39:37,966 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv
+2026-01-18 22:39:37,967 - __main__ - INFO - 完成下载，成功: 1/1
+2026-01-18 22:40:12,026 - __main__ - INFO - 将下载 3 只股票的数据: AAPL,MSFT,GOOGL
+2026-01-18 22:40:12,053 - __main__ - INFO - 从Yahoo Finance下载股票数据: AAPL
+2026-01-18 22:40:13,954 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:40:13,969 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:40:13,976 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/AAPL/AAPL_yahoo_20260118.csv
+2026-01-18 22:40:13,976 - __main__ - INFO - 从Yahoo Finance下载股票数据: MSFT
+2026-01-18 22:40:14,939 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:40:14,954 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:40:14,960 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/MSFT/MSFT_yahoo_20260118.csv
+2026-01-18 22:40:14,961 - __main__ - INFO - 从Yahoo Finance下载股票数据: GOOGL
+2026-01-18 22:40:15,774 - __main__ - INFO - 成功保存数据到: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv，共 3989 行
+2026-01-18 22:40:15,791 - __main__ - INFO - 删除了 1 行无效数据
+2026-01-18 22:40:15,798 - __main__ - INFO - 已修复并重新保存文件: /Users/bytedance/AI/SpaceExploreAI/data/raw/price_history/GOOGL/GOOGL_yahoo_20260118.csv
+2026-01-18 22:40:15,798 - __main__ - INFO - 完成下载，成功: 3/3

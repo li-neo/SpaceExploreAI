@@ -7,9 +7,9 @@ import pandas as pd
 from torch.utils.data import DataLoader
 torch.autograd.set_detect_anomaly(True)
 from model.transformer import StockTransformerModel, StockPricePredictor
-from data.data_processor import StockDataProcessor, StockDataset, create_dataloaders
+from data.finance.data_processor import StockDataProcessor, StockDataset, create_dataloaders
 from train.model_args import ModelArgs
-from trainer import StockModelTrainer
+from train.trainer import StockModelTrainer
 from log.logger import get_logger
 
 # 设置日志
@@ -371,8 +371,28 @@ def train_model(args: ModelArgs):
 
 
 if __name__ == "__main__":
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="训练股票预测模型")
+    parser.add_argument("--tickers", type=str, default="AAPL,MSFT,GOOGL", help="股票代码，逗号分隔")
+    parser.add_argument("--merge_stocks", action="store_true", help="是否合并所有股票数据进行训练")
+    parser.add_argument("--sequence_length", type=int, default=60, help="序列长度")
+    parser.add_argument("--batch_size", type=int, default=64, help="批次大小")
+    parser.add_argument("--epochs", type=int, default=100, help="训练轮数")
+    parser.add_argument("--learning_rate", type=float, default=1e-4, help="学习率")
+    
+    # 仅当作为脚本运行时解析参数
+    cmd_args = parser.parse_args()
+    
     # 初始化模型参数
     args = ModelArgs()
+    
+    # 更新参数
+    args.tickers = cmd_args.tickers
+    args.merge_stocks = cmd_args.merge_stocks
+    args.sequence_length = cmd_args.sequence_length
+    args.batch_size = cmd_args.batch_size
+    args.num_epochs = cmd_args.epochs
+    args.learning_rate = cmd_args.learning_rate
     
     # 训练模型
     trainer, metrics = train_model(args) 
